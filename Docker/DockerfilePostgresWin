@@ -21,13 +21,25 @@ RUN Invoke-WebRequest   -Uri "https://aka.ms/vs/17/release/vc_redist.x64.exe" -O
   Remove-Item "C:\\vc_redist.x64.exe"
 
 WORKDIR $POSTGRES_INSTALL
-COPY create_tables.sql $INIT_SQL_PATH
+COPY database/postgres/create_tables.sql $INIT_SQL_PATH
+
+#Create pgdata directory
+RUN New-Item -ItemType Directory -Force -Path $env:PGDATA | Out-Null
+
+RUN $env:POSTGRES_PASSWORD | Out-File -Encoding ASCII -NoNewline C:\\pgpass.txt ; \
+    .\\bin\\initdb.exe -D $env:PGDATA --username=$env:POSTGRES_USER --pwfile=C:\\pgpass.txt ; \
+    Remove-Item C:\\pgpass.txt
+
+
+# Copy configuration files
+COPY database/postgres/postgresql.conf $PGDATA/postgresql.conf
+COPY database/postgres/pg_hba.conf $PGDATA/pg_hba.conf
+
 
 EXPOSE 5432
 
 CMD ["powershell", "-Command", "\
-    $env:POSTGRES_PASSWORD | Out-File -Encoding ASCII -NoNewline C:\\pgpass.txt ; \
-    .\\bin\\initdb.exe -D $env:PGDATA --username=$env:POSTGRES_USER --pwfile=C:\\pgpass.txt ; \
+    $env:PGPASSWORD = $env:POSTGRES_PASSWORD; \
     Start-Process -FilePath .\\bin\\pg_ctl.exe -ArgumentList 'start','-D',$env:PGDATA,'-w' -NoNewWindow -PassThru | Out-Null; \
     Start-Sleep -Seconds 10; \
     .\\bin\\psql.exe -U $env:POSTGRES_USER -d postgres -c \"CREATE DATABASE $env:POSTGRES_DB; \" ; \

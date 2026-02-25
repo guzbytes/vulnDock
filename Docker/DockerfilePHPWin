@@ -9,7 +9,7 @@ RUN Install-WindowsFeature -Name Web-Server
 ENV VERSION=8.4.8
 ENV PHP_DIR=C:\php
 
-RUN Invoke-WebRequest  -Uri $('https://windows.php.net/downloads/releases/php-{0}-Win32-vs17-x64.zip' -f $env:VERSION) -OutFile "C:\\php.zip" ; \
+RUN Invoke-WebRequest  -Uri $('https://windows.php.net/downloads/releases/archives/php-{0}-Win32-vs17-x64.zip' -f $env:VERSION) -OutFile "C:\\php.zip" ; \
     Expand-Archive -Path C:\php.zip -DestinationPath $env:PHP_DIR ; \
     Remove-Item C:\php.zip
 
@@ -58,7 +58,6 @@ COPY Frontend/public/ C:/inetpub/wwwroot/
 COPY PHPWebapp/ C:/inetpub/wwwroot/api/
 COPY PHPWebapp/web.config C:/inetpub/wwwroot/web.config
 COPY PHPWebapp/webapi.config C:/inetpub/wwwroot/api/web.config
-COPY PHPWebapp/test.php C:/inetpub/wwwroot/info.php
 
 EXPOSE 80
 

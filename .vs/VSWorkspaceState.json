@@ -1,0 +1,16 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\ASPNETWebapp",
+    "\\ASPNETWebapp\\Controllers",
+    "\\ASPNETWebapp\\Services",
+    "\\Docker",
+    "\\Frontend",
+    "\\Frontend\\public",
+    "\\Frontend\\public\\css",
+    "\\Frontend\\public\\Images",
+    "\\Frontend\\public\\js"
+  ],
+  "SelectedNode": "\\Dockerfile",
+  "PreviewInSolutionExplorer": false
+}

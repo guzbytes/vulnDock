@@ -72,22 +72,47 @@ $dockerfilesDb = @{
 $dockerfilesWeb = @{
     "windows" = @{
         "php" = "Docker/DockerfilePHPWin"
-        "javascript" = "Docker/DockerfileNodeWin"
+        "javascript" = "Docker/DockerfileJsWin"
         "java" = "Docker/DockerfileJavaWin"
         "csharp" = "Docker/DockerfileAspnetWin"
         "python" = "Docker/DockerfilePythonWin"
     }
     "linux" = @{
         "php" = "Docker/DockerfilePHP"
-        "javascript" = "Docker/DockerfileNode"
+        "javascript" = "Docker/DockerfileJs"
         "csharp" = "Docker/DockerfileAspnet"
         "java" = "Docker/DockerfileJava"
         "python" = "Docker/DockerfilePython"
     }
 }
 
+# DB Versions
+$dbVersions = @{
+    "mysql"   = @("8.0.36", "8.4.3")
+    "postgres"= @("16", "17", "17.5")
+    "mssql"   = @("2019-latest", "2022-latest")
+}
+
+# WEb Versions
+$webVersions = @{
+    "linux" = @{
+        "javascript" = @("18.20.3-alpine", "20-alpine")        # Node
+        "python"     = @("3.10-alpine", "3.11-alpine")
+        "php"        = @("8.2-apache", "8.3-apache")
+        "java"       = @("17-jdk", "21-jdk")                   # Eclipse Temurin / OpenJDK según Dockerfile
+        "csharp"     = @("8.0")                                # .NET 8 runtime (ver Dockerfile)
+    }
+    "windows" = @{
+        "javascript" = @("18.20.3-windowsservercore-ltsc2019", "20.11.1-windowsservercore-ltsc2019")
+        "python"     = @("3.10.13-windowsservercore-ltsc2019", "3.11.7-windowsservercore-ltsc2019")
+        "php"        = @("8.2")  # si usas imagenes PHP para Windows personalizadas; si no, usar IIS/ASP.NET
+        "java"       = @("17-jdk-windowsservercore-ltsc2019", "21-jdk-windowsservercore-ltsc2019")
+        "csharp"     = @("8.0-nanoserver-ltsc2019")            # mcr.microsoft.com/dotnet/aspnet:8.0-nanoserver-ltsc2019
+    }
+}
+
 $backendFolders = @{ "php" = ".\PHPWebapp"; "javascript" = ".\NodeJSWebapp"; "java" = ".\JavaWebapp"; "csharp" = ".\ASPNETWebapp"; "python" = ".\PythonWebapp" }
-$relativeConnectorPaths = @{ "php" = "services"; "javascript" = "."; "java" = "app\src\webapp\app\main"; "csharp" = "Services"; "python" = "." }
+$relativeConnectorPaths = @{ "php" = "services"; "javascript" = "."; "java" = "app\src\main\java\com\webapp\app"; "csharp" = "Services"; "python" = "." }
 $extensions = @{ "php" = "php"; "javascript" = "js"; "java" = "java"; "csharp" = "cs"; "python" = "py" }
 function Replace-DbConnector {
     param(
@@ -117,7 +142,7 @@ function Replace-DbConnector {
         return
     }
 
-    Write-Host "Copiando $sourceFile -> $destinationFile"
+    Write-Host "Copying $sourceFile -> $destinationFile"
     Copy-Item -Path $sourceFile -Destination $destinationFile -Force
 }
 
@@ -134,21 +159,16 @@ function Build-DockerComposeDynamic {
     $dockerfileDb = $dockerfilesDb[$os][$db]
     $dockerfileWeb = $dockerfilesWeb[$os][$lang]
     return @"
-version: '3'
-
 services:
   db:
-    container_name: vulndock-database
     build:
       context: .
       dockerfile: $dockerfileDb
+    hostname: db
     ports:
       - "$(if ($db -eq "mssql") {"1433"} elseif ($db -eq "postgres") {"5432"} else {"3306"}):$(if ($db -eq "mssql") {"1433"} elseif ($db -eq "postgres") {"5432"} else {"3306"})"
-    networks:
-      - mynetwork
 
   web:
-    container_name: vulndock-web
     build:
       context: .
       dockerfile: $dockerfileWeb
@@ -156,12 +176,6 @@ services:
       - "80:80"
     depends_on:
       - db
-    networks:
-      - mynetwork
-
-networks:
-  mynetwork:
-    driver: bridge
 "@
 }
 
@@ -170,11 +184,7 @@ function Copy-FoldersForWindows {
     $backendSrc = $backendFolders[$lang]
     Copy-Item -Recurse ".\Frontend" ".\Docker\frontend" -Force
     Copy-Item -Recurse $backendSrc ".\Docker\backend" -Force
-    $dbConnectorFile = Get-DbConnectorFile -language $lang -database $db
-    #if ($dbConnectorFile) {
-    #
-    #Copy-Item $dbConnectorFile ".\backend" -Force
-    #}
+    Copy-Item -Recurse ".\database" ".\Docker\database" -Force
 }
 
 function Inicialize-Docker {
@@ -259,6 +269,8 @@ function Ensure-DockerEngineMatchesOSSystem {
 function Remove-FoldersForWindows {
     if (Test-Path ".\Docker\frontend") { Remove-Item -Recurse -Force ".\Docker\frontend" }
     if (Test-Path ".\Docker\backend") { Remove-Item -Recurse -Force ".\Docker\backend" }
+    if (Test-Path ".\Docker\database") { Remove-Item -Recurse -Force ".\Docker\database" }
+
 }
 
 $osSystem = Prompt-Choice "Select OS:" $validOsOptions
@@ -270,7 +282,7 @@ Replace-DbConnector -language $language -database $database
 Set-Content -Path "docker-compose.yml" -Value $composeContent -Encoding UTF8
 Write-Host "Generated docker-compose.yml"
 
-if ($osSystem -eq "windows") { Copy-FoldersForWindows -lang $language -db $database }
+#if ($osSystem -eq "windows") { Copy-FoldersForWindows -lang $language -db $database }
 
 Write-Host "Starting Docker..."
 
@@ -287,6 +299,7 @@ while ($true) {
     $key = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     if ($key.Character -eq 'q') {
         Write-Host "`n'q' pressed. Cleaning up..."
+        del ASPNETWebapp\DatabaseConnector.cs -ErrorAction SilentlyContinue
         $deleteContainer = Read-Host "Delete Docker container? (Y/N)"
         if ($deleteContainer.ToUpper() -eq 'Y') {
             docker-compose down --volumes --remove-orphans

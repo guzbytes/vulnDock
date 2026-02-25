@@ -10,7 +10,7 @@ const cookieParser = require('cookie-parser');
 const fs = require('fs');
 const pug = require('pug');
 const { exec } = require('child_process');
-const { insertUser, getUserByUsername, queryDb } = require('./DatabaseConnector');
+const { insertUser, getUserByUsername, getUserById, updateUserProfile, listUsers, toggleAdmin, deleteUser, listAllBlogs, listPublicBlogs, getBlogById, createBlog, insertComment, insertCommentFiles, listCommentsByBlogId, listFilesByCommentId, getUserNameById } = require('./DatabaseConnector');
 
 
 
@@ -199,20 +199,19 @@ app.get('/api/v1/user/me', authenticateUser, async(req, res) => {
 
   if (!req.user) return res.status(401).json({ message: 'No autenticado' });
   const userId = req.user.id;
+  console.log('ID de usuario autenticado:', userId);
 
- try {
-    const query = `SELECT id, username, firstname, lastname, email, avatar FROM users WHERE id = ?`;
-    const results = await queryDb(query, [userId]);
+  try {
+      const results = await getUserById(userId);
+      if (!results || results.length === 0) {
+        return res.status(404).json({ message: 'Usuario no encontrado' });
+      }
 
-    if (!results || results.length === 0) {
-      return res.status(404).json({ message: 'Usuario no encontrado' });
+      res.json(results[0]);
+    } catch (err) {
+      console.error('Error al obtener usuario:', err);
+      res.status(500).json({ message: 'Error al obtener los datos' });
     }
-
-    res.json(results[0]);
-  } catch (err) {
-    console.error('Error al obtener usuario:', err);
-    res.status(500).json({ message: 'Error al obtener los datos' });
-  }
 });
 
 app.post('/api/v1/update-profile', authenticateUser, upload.single('avatar'), async (req, res) => {
@@ -225,26 +224,12 @@ app.post('/api/v1/update-profile', authenticateUser, upload.single('avatar'), as
     return res.status(400).json({ message: 'Nombre, Apellidos y Correo son obligatorios.' });
   }
 
-  const userId = req.user.id;
-  let query = `UPDATE users SET firstname = ?, lastname = ?, email = ?`;
-  const updateFields = [firstName, lastName, email];
-
   try {
-    if (newPassword) {
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      query += `, password = ?`;
-      updateFields.push(hashedPassword);
-    }
+    const payload = { firstName, lastName, email, newHashedPassword: null, avatarPath };
+    if (newPassword) payload.newHashedPassword = await bcrypt.hash(newPassword, 10);
 
-    if (avatarPath) {
-      query += `, avatar = ?`;
-      updateFields.push(avatarPath);
-    }
+    const result = await updateUserProfile(userId, payload);
 
-    query += ` WHERE id = ?`;
-    updateFields.push(userId);
-
-    const result = await queryDb(query, updateFields);
 
     if (!result || result.affectedRows === 0) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
@@ -262,8 +247,7 @@ app.get('/api/v1/users', authenticateUser, async (req, res) => {
   if (!req.user.is_admin) return res.status(403).json({ message: 'No autorizado' });
 
   try {
-    const results = await queryDb('SELECT id, username, email, is_admin FROM users');
-    res.json(results);
+    const results = await listUsers();    res.json(results);
   } catch (err) {
     res.status(500).json({ message: 'Error al obtener usuarios' });
   }
@@ -272,8 +256,7 @@ app.get('/api/v1/users', authenticateUser, async (req, res) => {
 // Switch user role to admin or user
 app.get('/api/v1/users/:id/toggle-admin', authenticateUser, async (req, res) => {
   try {
-    const result = await queryDb('UPDATE users SET is_admin = NOT is_admin WHERE id = ?', [req.params.id]);
-
+    const result = await toggleAdmin(req.params.id);
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
@@ -289,8 +272,7 @@ app.delete('/api/v1/users/:id', authenticateUser, async (req, res) => {
   if (!req.user.is_admin) return res.status(403).json({ message: 'No autorizado' });
 
   try {
-    await queryDb('DELETE FROM users WHERE id = ?', [req.params.id]);
-    res.json({ message: 'Usuario eliminado' });
+    await deleteUser(req.params.id);    res.json({ message: 'Usuario eliminado' });
   } catch (err) {
     res.status(500).json({ message: 'Error al eliminar usuario' });
   }
@@ -302,13 +284,10 @@ app.post('/api/v1/users/import', authenticateUser, async (req, res) => {
   try {
     const response = await axios.get(url);
     const users = response.data;
-
+    const is_admin = users.is_admin || 0;
     for (const user of users) {
       const hashedPassword = await bcrypt.hash(user.password, 10);
-      await queryDb(
-        'INSERT INTO users (username, email, firstname, lastname, password, is_admin) VALUES (?, ?, ?, ?, ?, ?)',
-        [user.username, user.email, user.firstname, user.lastname, hashedPassword, user.is_admin || 0]
-      );
+      await insertUser(user.username, user.firstname, user.lastname, user.email, hashedPassword, null, is_admin);
     }
 
     res.json({ message: 'Usuarios importados' });
@@ -332,10 +311,7 @@ app.post('/api/v1/users/import-xml', authenticateUser, async (req, res) => {
       const isAdmin = user.is_admin === 'true' || user.is_admin === 1 ? 1 : 0;
       const hashedPassword = await bcrypt.hash(user.password, 10);
 
-      await queryDb(
-        'INSERT INTO users (username, email, firstname, lastname, password, is_admin) VALUES (?, ?, ?, ?, ?, ?)',
-        [user.username, user.email, user.firstname, user.lastname, hashedPassword, isAdmin]
-      );
+      await insertUser(user.username, user.firstname, user.lastname, user.email, hashedPassword, null, isAdmin);
       console.log('Usuario insertado con éxito:', user.username);
     }
 
@@ -360,13 +336,7 @@ app.post('/api/v1/ping', authenticateUser, (req, res) => {
 // List the blogs
 app.get('/api/v1/blogs', authenticateUser, async (req, res) => {
   try {
-    let query;
-    if (req.user) {
-      query = 'SELECT * FROM blogs';
-    } else {
-      query = 'SELECT * FROM blogs WHERE is_private = false';
-    }
-    const results = await queryDb(query);
+    const results = req.user ? await listAllBlogs() : await listPublicBlogs();
     res.json(results);
   } catch (err) {
     console.error('Error al obtener los blogs:', err);
@@ -378,10 +348,10 @@ app.get('/api/v1/blogs', authenticateUser, async (req, res) => {
 app.get('/api/v1/blog/:blog_id', async (req, res) => {
   const { blog_id } = req.params;
   try {
-    const results = await queryDb('SELECT * FROM blogs WHERE id = ?', [blog_id]);
-    if (results.length === 0) {
-      return res.status(404).json({ error: 'Blog no encontrado' });
-    }
+      const results = await getBlogById(blog_id);    
+      if (results.length === 0) {
+        return res.status(404).json({ error: 'Blog no encontrado' });
+      }
     res.json(results[0]);
   } catch (err) {
     console.error('Error al obtener el blog:', err);
@@ -401,23 +371,14 @@ app.post('/api/v1/blog/:blog_id/comments', authenticateUser, uploadCommentFiles.
   }
 
   try {
-    // Insertar comentario
-    const result = await queryDb(
-      "INSERT INTO comments (blog_id, writer, comment) VALUES (?, ?, ?)", 
-      [blog_id, username, content]
-    );
+    
+    const { insertId: commentId } = await insertComment(blog_id, username, content);
 
-    const commentId = result.insertId;
-
-    // Insertar archivos asociados si existen
-    const files = req.files.map(file => [commentId, `/uploads/${file.filename}`]);
-
+    const files = (req.files || []).map(file => `/uploads/${file.filename}`);
     if (files.length > 0) {
-      await queryDb(
-        "INSERT INTO comment_files (comment_id, file_path) VALUES ?",
-        [files]
-      );
+      await insertCommentFiles(commentId, files);
     }
+
 
     res.status(201).json({
       message: 'Comentario agregado con éxito',
@@ -439,16 +400,13 @@ app.get('/api/v1/blog/:blog_id/comments', authenticateUser, async (req, res) => 
   const { blog_id } = req.params;
 
   try {
-    const comments = await queryDb("SELECT * FROM comments WHERE blog_id = ?", [blog_id]);
-
-    // Para cada comentario, obtener archivos
+    
+    const comments = await listCommentsByBlogId(blog_id);
     const commentsWithFiles = await Promise.all(comments.map(async (comment) => {
-      const files = await queryDb("SELECT * FROM comment_files WHERE comment_id = ?", [comment.id]);
-      return {
-        ...comment,
-        files: files.map(file => ({ file_path: file.file_path })),
-      };
+      const files = await listFilesByCommentId(comment.id);
+      return { ...comment, files: files.map(f => ({ file_path: f.file_path })) };
     }));
+
 
     res.status(200).json({ comments: commentsWithFiles });
   } catch (err) {
@@ -463,22 +421,18 @@ app.post('/api/v1/blog', authenticateUser, async (req, res) => {
   if (!title || !content) {
     return res.status(400).json({ message: 'El título y el contenido son obligatorios.' });
   }
-
-  let authorName = author || 'Anónimo';
+  
+  let authorName = author || 'Anónimo';  
 
   try {
     if (req.user) {
-      // Obtener nombre completo del usuario autenticado
-      const results = await queryDb('SELECT firstname, lastname FROM users WHERE id = ?', [req.user.id]);
-      if (results.length > 0) {
-        authorName = `${results[0].firstname} ${results[0].lastname}`;
-      }
+      const fullName = await getUserNameById(req.user.id);``
+      if (fullName) authorName = fullName;
     }
 
-    const queryBlog = 'INSERT INTO blogs (title, content, author, url, is_private) VALUES (?, ?, ?, ?, ?)';
-    const result = await queryDb(queryBlog, [title, content, authorName, url, is_private || false]);
+    const { insertId } = await createBlog({ title, content, authorName, url, is_private: !!is_private });
 
-    res.status(201).json({ message: 'Blog creado con éxito', blogId: result.insertId });
+    res.status(201).json({ message: 'Blog creado con éxito', blogId: insertId });
   } catch (err) {
     console.error('Error al crear el blog:', err);
     res.status(500).json({ message: 'Error al crear el blog.' });

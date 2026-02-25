@@ -1,5 +1,5 @@
-# Offical Image for OpenJDK
-FROM openjdk:25-windowsservercore AS build
+ARG WEB_VERSION=21
+FROM eclipse-temurin:${WEB_VERSION}-windowsservercore AS build
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';"]
 
@@ -7,38 +7,40 @@ SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';"]
 
 RUN New-Item -Path 'C:\\tmp' -ItemType Directory 
 RUN New-Item -Path 'C:\\tools' -ItemType Directory 
-RUN powershell -Command "Invoke-WebRequest https://downloads.apache.org/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.zip -OutFile C:\\tmp\\maven.zip"
+RUN powershell -Command "Invoke-WebRequest https://downloads.apache.org/maven/maven-3/3.9.12/binaries/apache-maven-3.9.12-bin.zip -OutFile C:\\tmp\\maven.zip"
 
-RUN Expand-Archive -Path C:\\tmp\\maven.zip -DestinationPath C:\\tools\\ ; \
-    $mvnFolder = Get-ChildItem -Path C:\\tools\\ | Where-Object { $_.Name -like 'apache-maven-*' -and $_.PSIsContainer }; \
-    Rename-Item -Path $mvnFolder.FullName -NewName 'maven'
+RUN Expand-Archive -Path C:\\tmp\\maven.zip -DestinationPath C:\\tools\\ ; $mvnFolder = Get-ChildItem -Path C:\\tools\\ | Where-Object { $_.Name -like 'apache-maven-*' -and $_.PSIsContainer }; Rename-Item -Path $mvnFolder.FullName -NewName 'maven'
 
 ENV MAVEN_HOME="C:\\tools\\maven"
-ENV PATH="C:\\tools\\maven\\bin;C:\\Program Files\\Java\\jdk-1.8\\bin;%PATH%"
+#ENV PATH="C:\\tools\\maven\\bin;%PATH%"
+
+WORKDIR C:\\build
+COPY JavaWebapp/app/pom.xml pom.xml
+RUN C:\\tools\\maven\\bin\\mvn.cmd -v
+RUN C:\\tools\\maven\\bin\\mvn.cmd dependency:go-offline; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+COPY JavaWebapp/app/src src
+RUN C:\\tools\\maven\\bin\\mvn.cmd clean package -DskipTests; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+RUN ls C:\\build\\src
+RUN ls C:\\build
 
 SHELL ["cmd", "/S", "/C"]
 
-# Compile
-RUN dir "C:\openjdk-25\bin\java.exe"
-RUN C:\\tools\\maven\\bin\\mvn -v
-WORKDIR C:\\build
-COPY JavaWebapp/app/pom.xml pom.xml
-RUN C:\\tools\\maven\\bin\\mvn dependency:go-offline
-COPY JavaWebapp/app/src src
-RUN C:\\tools\\maven\\bin\\mvn clean package -DskipTests
+FROM eclipse-temurin:${WEB_VERSION}-windowsservercore as runtime
+
+WORKDIR C:\\app
 
 # Execution Webapp
 
 WORKDIR C:\\app
 
 # Copy the jar file
-RUN copy C:\build\target\app-0.0.1-SNAPSHOT.jar C:\app\app.jar
+COPY --from=build C:/build/target/app-0.0.1-SNAPSHOT.jar app.jar
 
 # Copy frontend files
 COPY Frontend/ .
 
 # Expose port 80
-EXPOSE 8080
+EXPOSE 80
 
 # Lanzar la aplicación
-ENTRYPOINT ["cmd", "/S", "/C", "C:\\openjdk-25\\bin\\java.exe -jar C:\\app\\app.jar"]
+ENTRYPOINT ["java", "-jar", "C:\\app\\app.jar"]

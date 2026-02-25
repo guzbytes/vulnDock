@@ -3,25 +3,29 @@ FROM mcr.microsoft.com/windows/servercore:ltsc2019 AS download
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ENV NODE_VERSION=18.20.3
-RUN Invoke-WebRequest $('https://nodejs.org/dist/v{0}/node-v{0}-win-x64.zip' -f $env:NODE_VERSION) -OutFile 'node.zip' -UseBasicParsing ; \
+ENV WEB_VERSION=20.8.1
+RUN Invoke-WebRequest $('https://nodejs.org/dist/v{0}/node-v{0}-win-x64.zip' -f $env:WEB_VERSION) -OutFile 'node.zip' -UseBasicParsing ; \
     Expand-Archive node.zip -DestinationPath C:\ ; \
-    Rename-Item -Path $('C:\node-v{0}-win-x64' -f $env:NODE_VERSION) -NewName 'C:\nodejs'
+    Rename-Item -Path $('C:\node-v{0}-win-x64' -f $env:WEB_VERSION) -NewName 'C:\nodejs'
 
 FROM  mcr.microsoft.com/windows/servercore:ltsc2019 AS target
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 ENV NPM_CONFIG_LOGLEVEL=info
+ENV PATH="C:\\nodejs;${PATH}"
 
 COPY --from=download /nodejs /nodejs
 
-RUN New-Item -Path 'C:\\app' -ItemType Directory 
+
+# Copy files for installation and install dependencies
+WORKDIR C:\\app
+COPY NodeJSWebapp/package*.json ./
+
+RUN ["C:\\nodejs\\node.exe", "C:\\nodejs\\node_modules\\npm\\bin\\npm-cli.js", "install", "--omit=dev"]
+
 COPY NodeJSWebapp/ C:\\app
 COPY Frontend/ C:\\app
-
-RUN $env:PATH = 'C:\nodejs;{0}' -f $env:PATH ; \
-    [Environment]::SetEnvironmentVariable('PATH', $env:PATH, [EnvironmentVariableTarget]::Machine)
 
 EXPOSE 80
 CMD [ "C:\\nodejs\\node.exe" , "C:\\app\\app.js" ]

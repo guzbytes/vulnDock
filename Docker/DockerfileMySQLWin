@@ -25,7 +25,7 @@ RUN $headers = @{ 'Accept' = 'text/html,application/xhtml+xml,application/xml;q=
     Remove-Item 'mysql.zip' 
 
 WORKDIR $MYSQL_INSTALL_PATH
-COPY create_tables.sql $INIT_SQL_PATH
+COPY database/mysql/create_tables.sql $INIT_SQL_PATH
 
 EXPOSE 3306
 

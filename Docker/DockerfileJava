@@ -18,7 +18,7 @@ COPY ../JavaWebapp/app/src ./src
 RUN mvn clean package -DskipTests
 
 # Etapa final: usa una imagen más ligera solo con el JDK
-FROM openjdk:${WEB_VERSION}-jdk-slim
+FROM eclipse-temurin:${WEB_VERSION}-jre-jammy
 
 # Instala el comando `ping`
 RUN apt-get update && apt-get install -y iputils-ping && rm -rf /var/lib/apt/lists/*

@@ -8,21 +8,49 @@ WORKDIR /var/www/html/
 RUN chown -R www-data:www-data /var/www/html \
  && chmod -R 755 /var/www/html
 
-# Instala las extensiones necesarias
-RUN apt-get update && \
-    apt-get install -y  gnupg2 iputils-ping  libpq-dev unixodbc-dev libssl-dev  && \
-    docker-php-ext-install pdo pdo_mysql mysqli pdo_pgsql && \
-    docker-php-ext-enable mysqli && \
-    a2enmod rewrite 
+# Paquetes base + toolchain para compilar extensiones PECL
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      ca-certificates curl gnupg2 apt-transport-https \
+      iputils-ping \
+      build-essential autoconf \
+      unixodbc unixodbc-dev \
+      libssl-dev libltdl-dev \
+      libpq-dev; \
+    rm -rf /var/lib/apt/lists/*
 
-# Instalación de drivers de Microsoft para SQL Server (pdo_sqlsrv)
-RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
-    curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
-    apt-get update && ACCEPT_EULA=Y apt-get install -y \
-    msodbcsql17 \
-    mssql-tools \
-    && pecl install pdo_sqlsrv \
-    && docker-php-ext-enable pdo_sqlsrv
+# Extensiones PHP habituales
+RUN docker-php-ext-install pdo pdo_mysql mysqli pdo_pgsql \
+ && docker-php-ext-enable mysqli \
+ && a2enmod rewrite
+
+
+# -------- Microsoft ODBC 18 + tools (usando keyring y signed-by) --------
+# Detecta la versión de Debian dentro de la imagen (bullseye/bookworm/buster)
+RUN set -eux; \
+    . /etc/os-release; \
+    CODENAME="${VERSION_CODENAME:-bullseye}"; \
+    mkdir -p /usr/share/keyrings; \
+    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+      | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg; \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/${VERSION_ID:-11}/prod ${CODENAME} main" \
+      > /etc/apt/sources.list.d/mssql-release.list; \
+    apt-get update; \
+    # Acepta EULA y instala ODBC 18 + herramientas
+    ACCEPT_EULA=Y apt-get install -y --no-install-recommends \
+      msodbcsql18 mssql-tools18; \
+    # Opcional: sqlcmd/bcp al PATH del contenedor
+    ln -s /opt/mssql-tools18/bin/sqlcmd /usr/local/bin/sqlcmd || true; \
+    ln -s /opt/mssql-tools18/bin/bcp /usr/local/bin/bcp || true; \
+    rm -rf /var/lib/apt/lists/*
+
+# -------- Drivers PHP para SQL Server (PECL) --------
+# Nota: para PHP 7.4 conviene fijar versiones probadas (5.10.1).
+RUN set -eux; \
+    pecl install sqlsrv-5.10.1 pdo_sqlsrv-5.10.1; \
+    docker-php-ext-enable sqlsrv pdo_sqlsrv
+
 
 # Copy the frontend files to the container
 COPY ../Frontend/public ./

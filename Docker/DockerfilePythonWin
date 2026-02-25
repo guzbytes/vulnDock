@@ -59,16 +59,15 @@ COPY --from=python /Python /Python
 # Set the working directory
 WORKDIR C://app
 
-COPY PythonWebApp/ .
-COPY Frontend/ ./
+COPY PythonWebApp/ ./PythonWebApp
+COPY Frontend/ ./public
 
 # Install dependencies
-RUN C:\Python\python.exe -m pip install --trusted-host pypi.python.org --trusted-host pypi.org --trusted-host files.pythonhosted.org --no-cache-dir -r requirements.txt
-
+RUN C:\Python\python.exe -m pip install --trusted-host pypi.python.org --trusted-host pypi.org --trusted-host files.pythonhosted.org --no-cache-dir -r ./PythonWebApp/requirements.txt
 ENV PATH="C:\\Python;C:\\Python\\Scripts;%PATH%"
 
 # Puerto Flask (si decides exponerlo)
 EXPOSE 80
 
 # Comando final para ejecutar la app
-CMD ["C:\\Python\\python.exe", "app.py"]
+CMD ["C:\\Python\\python.exe", "-m", "PythonWebApp.app"]

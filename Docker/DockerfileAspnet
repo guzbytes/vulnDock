@@ -1,22 +1,33 @@
-# Establecer la imagen base (usando el SDK de .NET para compilar la app)
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-nanoserver-1809 AS base
+# Imagen base del runtime (Linux)
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 WORKDIR /app
 EXPOSE 80
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0-nanoserver-1809 AS build
+# Imagen de compilación
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
-COPY ["ASPNETWebapp/ASPNETWebapp.csproj", "./"]
-RUN dotnet restore "ASPNETWebapp.csproj"
-COPY ASPNETWebapp/ .
-WORKDIR "/src/"
-# RUN dotnet clean
-RUN dotnet build "ASPNETWebapp.csproj" -c Release -o /app/build
+
+# Copiar archivo de proyecto
+COPY ../ASPNETWebapp/ASPNETWebapp.csproj ./ASPNETWebapp/
+
+# Restaurar dependencias
+RUN dotnet restore ASPNETWebapp/ASPNETWebapp.csproj
+
+# Copiar todo el código
+COPY ../ASPNETWebapp/ ./ASPNETWebapp/
+
+# Copiar frontend estático al wwwroot del proyecto (se incluirá en el publish)
+COPY ../Frontend/public ./ASPNETWebapp/wwwroot/
+
+# Compilar
+WORKDIR /src/ASPNETWebapp
+RUN dotnet build -c Release -o /app/build
 
 # Publicar la aplicación
 FROM build AS publish
-RUN dotnet publish "ASPNETWebapp.csproj" -c Release -o /app/publish
+RUN dotnet publish -c Release -o /app/publish
 
-# Imagen final de la app (usando runtime de .NET)
+# Imagen final
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .

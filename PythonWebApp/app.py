@@ -8,7 +8,7 @@ from werkzeug.utils import secure_filename
 import xml.etree.ElementTree as ET
 from io import StringIO
 import subprocess
-from . import DatabaseConnector as DatabaseConnector
+import PythonWebApp.DatabaseConnector as DatabaseConnector
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'public/images/avatars'

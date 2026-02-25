@@ -1,28 +1,17 @@
-﻿version: '3'
-
-services:
+﻿services:
   db:
-    container_name: vulndock-database
     build:
       context: .
-      dockerfile: Docker/DockerfileMySQL
+      dockerfile: Docker/DockerfileMySQLWin
+    hostname: db
     ports:
       - "3306:3306"
-    networks:
-      - mynetwork
 
   web:
-    container_name: vulndock-web
     build:
       context: .
-      dockerfile: Docker/DockerfilePython
+      dockerfile: Docker/DockerfileJavaWin
     ports:
       - "80:80"
     depends_on:
       - db
-    networks:
-      - mynetwork
-
-networks:
-  mynetwork:
-    driver: bridge

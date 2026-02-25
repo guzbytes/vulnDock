@@ -1,14 +1,17 @@
 # Establecer la imagen base (usando el SDK de .NET para compilar la app)
 ARG WEB_VERSION=8.0
-FROM mcr.microsoft.com/dotnet/aspnet:${WEB_VERSION}-nanoserver-1809 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:${WEB_VERSION}-windowsservercore-ltsc2022  AS base
 WORKDIR /app
 EXPOSE 80
 
-FROM mcr.microsoft.com/dotnet/sdk:${WEB_VERSION}-nanoserver-1809 AS build
+FROM mcr.microsoft.com/dotnet/sdk:${WEB_VERSION}-windowsservercore-ltsc2022  AS build
 WORKDIR /src
-COPY ["ASPNETWebapp/ASPNETWebapp.csproj", "./"]
+COPY ["Docker/backend/ASPNETWebapp.csproj", "./"]
 RUN dotnet restore "ASPNETWebapp.csproj"
-COPY ASPNETWebapp/ .
+
+# Copy the code 
+COPY Docker/backend/. .
+COPY Docker/frontend/public ./wwwroot/
 WORKDIR "/src/"
 # RUN dotnet clean
 RUN dotnet build "ASPNETWebapp.csproj" -c Release -o /app/build
