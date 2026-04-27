@@ -7,7 +7,7 @@ SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';"]
 
 RUN New-Item -Path 'C:\\tmp' -ItemType Directory 
 RUN New-Item -Path 'C:\\tools' -ItemType Directory 
-RUN powershell -Command "Invoke-WebRequest https://downloads.apache.org/maven/maven-3/3.9.12/binaries/apache-maven-3.9.12-bin.zip -OutFile C:\\tmp\\maven.zip"
+RUN powershell -Command "Invoke-WebRequest https://downloads.apache.org/maven/maven-3/3.9.15/binaries/apache-maven-3.9.15-bin.zip -OutFile C:\\tmp\\maven.zip"
 
 RUN Expand-Archive -Path C:\\tmp\\maven.zip -DestinationPath C:\\tools\\ ; $mvnFolder = Get-ChildItem -Path C:\\tools\\ | Where-Object { $_.Name -like 'apache-maven-*' -and $_.PSIsContainer }; Rename-Item -Path $mvnFolder.FullName -NewName 'maven'
 
@@ -20,10 +20,6 @@ RUN C:\\tools\\maven\\bin\\mvn.cmd -v
 RUN C:\\tools\\maven\\bin\\mvn.cmd dependency:go-offline; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 COPY JavaWebapp/app/src src
 RUN C:\\tools\\maven\\bin\\mvn.cmd clean package -DskipTests; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-RUN ls C:\\build\\src
-RUN ls C:\\build
-
-SHELL ["cmd", "/S", "/C"]
 
 FROM eclipse-temurin:${WEB_VERSION}-windowsservercore as runtime
 

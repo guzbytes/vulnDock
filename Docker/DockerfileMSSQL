@@ -1,13 +1,14 @@
-# Imagen oficial de Microsoft SQL Server 2022 en Ubuntu
-FROM mcr.microsoft.com/mssql/server:2022-latest
+# Official Microsoft SQL Server 2022 image on Ubuntu
+ARG DB_VERSION=2022-latest
+FROM mcr.microsoft.com/mssql/server:${DB_VERSION}
 
-# Variables de entorno requeridas por la imagen
+# Environment variables required by the image
 ENV SA_PASSWORD=YourStrong!Passw0rd
 ENV ACCEPT_EULA=Y
 ENV MSSQL_PID=Express
 
 USER root
-# Instalar herramientas necesarias para sqlcmd
+# Install necessary tools for sqlcmd
 RUN apt-get update && \
     apt-get install -y curl gnupg apt-transport-https && \
     curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
@@ -19,16 +20,16 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists
 
-# Copiamos el script SQL para inicializar la base de datos
+# Copy the SQL script to initialize the database
 COPY ../database/mssql/create_tables.sql /init.sql
 
-# Expone el puerto por defecto de MSSQL
+# Expose the default MSSQL port
 EXPOSE 1433
 
-# Script de inicio que espera a que el servidor esté listo y ejecuta el SQL
+# Startup script that waits for the server to be ready and executes the SQL
 CMD /bin/bash -c "\
     /opt/mssql/bin/sqlservr & \
-    echo 'Esperando a que SQL Server inicie...' && sleep 20 && \
+    echo 'Waiting for SQL Server to start...' && sleep 20 && \
     /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P '$SA_PASSWORD' -Q 'CREATE DATABASE web_app' && \
     /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P '$SA_PASSWORD' -d web_app -i /init.sql && \
     tail -f /dev/null"

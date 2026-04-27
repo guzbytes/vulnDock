@@ -1,5 +1,6 @@
 # Windows image for MSSQL Server
-FROM mcr.microsoft.com/windows/servercore:ltsc2019
+ARG DB_VERSION=2019-latest
+FROM mcr.microsoft.com/mssql/server:${DB_VERSION}
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';"]
 

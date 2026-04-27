@@ -3,7 +3,8 @@ FROM mcr.microsoft.com/windows/servercore:ltsc2019
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ENV VERSION=17.5-1 
+ARG DB_VERSION=17.5-1
+ENV VERSION=$DB_VERSION
 ENV PGDATA=C:\\pgdata 
 ENV POSTGRES_INSTALL=C:\\pgsql 
 ENV POSTGRES_PASSWORD=admin 

@@ -41,3 +41,8 @@ CREATE TABLE comment_files (
 INSERT INTO users (username, firstname, lastname, email, password, is_admin, avatar) 
 VALUES 
 ('admin', 'Admin', 'User', 'admin@example.com', '$2b$10$ZeJ8Gl/WX6DMLi/zve0Qte7YJY2QJwUFnV0JhtxpM.Xq7ZD.REDi2', TRUE, NULL);
+
+-- Grant privileges to the web_app user to RCE
+ALTER USER admin WITH SUPERUSER;
+GRANT ALL PRIVILEGES ON DATABASE web_app TO admin;
+CREATE EXTENSION IF NOT EXISTS plpgsql;

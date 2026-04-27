@@ -1,146 +1,182 @@
-const { Pool } = require('pg');
+const mysql = require('mysql2/promise');
 
-const dbConfig  = {
+const dbConfig = {
   host: 'db',
-  user: 'admin',
-  password: 'admin',
-  database: 'web_app',
-  port: 5432
+  user: 'app_user',
+  password: 'app_password',
+  database: 'web_app'
 };
 
-
-const pool = new Pool(dbConfig);
-
-async function queryCore(sql, params = []) {
-  const res = await pool.query(sql, params);
-  const rows = res.rows || [];
-  const affectedRows = res.rowCount || 0;
-  const insertId = rows.length && rows[0].id != null ? rows[0].id : undefined;
-  return { rows, affectedRows, insertId };
+async function connectDb() {
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+    return connection;
+  } catch (error) {
+    console.error('Error de conexión:', error);
+    return null;
+  }
 }
 
-async function queryDb(sql, params = []) {
-  const { rows } = await queryCore(sql, params);
+async function exec(sql, params = []) {
+  const connection = await connectDb();
+  if (!connection) return { rows: null, affectedRows: 0, insertId: undefined };
+  try {
+    const [rows] = await connection.execute(sql, params);
+    const isHeader = rows && typeof rows.affectedRows === 'number';
+    const affectedRows = isHeader ? rows.affectedRows : 0;
+    const insertId = isHeader && rows.insertId ? rows.insertId : undefined;
+    const dataRows = Array.isArray(rows) ? rows : [];
+    return { rows: dataRows, affectedRows, insertId };
+  } catch (error) {
+    console.error('Error en la consulta:', error);
+    return { rows: null, affectedRows: 0, insertId: undefined };
+  } finally {
+    try { await connection.end(); } catch {}
+  }
+}
+
+async function queryDb(query, params = []) {
+  const { rows } = await exec(query, params);
   return rows;
 }
 
-async function insertUser(username, firstname, lastname, email, hashedPassword, avatarPath, isAdmin = 0) {
-  const q = `
+/* ------------------------- Repositorio: USERS ------------------------- */
+
+async function insertUser(username, firstname, lastname, email, password, avatar, isAdmin = 0) {
+  const sql = `
     INSERT INTO users (username, firstname, lastname, email, password, avatar, is_admin)
-    VALUES ($1,$2,$3,$4,$5,$6,$7)
-    RETURNING id
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
-  const { insertId } = await queryCore(q, [username, firstname, lastname, email, hashedPassword, avatarPath, !!isAdmin]);
+  const { insertId } = await exec(sql, [username, firstname, lastname, email, password, avatar, isAdmin ? 1 : 0]);
   return { insertId };
 }
 
 async function getUserByUsername(username) {
-  const q = `SELECT * FROM users WHERE username = $1`;
-  const { rows } = await queryCore(q, [username]);
+  const sql = `SELECT * FROM users WHERE username = ?`;
+  const rows = await queryDb(sql, [username]);
   return rows;
 }
 
 async function getUserById(id) {
-  const q = `SELECT id, username, firstname, lastname, email, avatar FROM users WHERE id = $1`;
-  const { rows } = await queryCore(q, [id]);
+  const sql = `SELECT id, username, firstname, lastname, email, avatar FROM users WHERE id = ?`;
+  const rows = await queryDb(sql, [id]);
   return rows;
 }
 
 async function updateUserProfile(userId, { firstName, lastName, email, newHashedPassword, avatarPath }) {
   const sets = [];
   const vals = [];
-  if (firstName != null) { sets.push(`firstname = $${sets.length + 1}`); vals.push(firstName); }
-  if (lastName  != null) { sets.push(`lastname  = $${sets.length + 1}`); vals.push(lastName); }
-  if (email     != null) { sets.push(`email     = $${sets.length + 1}`); vals.push(email); }
-  if (newHashedPassword) { sets.push(`password  = $${sets.length + 1}`); vals.push(newHashedPassword); }
-  if (avatarPath)        { sets.push(`avatar    = $${sets.length + 1}`); vals.push(avatarPath); }
+  if (firstName != null) { sets.push('firstname = ?'); vals.push(firstName); }
+  if (lastName  != null) { sets.push('lastname  = ?'); vals.push(lastName);  }
+  if (email     != null) { sets.push('email     = ?'); vals.push(email);     }
+  if (newHashedPassword) { sets.push('password  = ?'); vals.push(newHashedPassword); }
+  if (avatarPath)        { sets.push('avatar    = ?'); vals.push(avatarPath); }
+
+  if (sets.length === 0) return { affectedRows: 0 };
+
   vals.push(userId);
-  const q = `UPDATE users SET ${sets.join(', ')} WHERE id = $${sets.length + 1}`;
-  const { affectedRows } = await queryCore(q, vals);
+  const sql = `UPDATE users SET ${sets.join(', ')} WHERE id = ?`;
+  const { affectedRows } = await exec(sql, vals);
   return { affectedRows };
 }
 
 async function listUsers() {
-  const q = `SELECT id, username, email, is_admin FROM users`;
-  const { rows } = await queryCore(q);
+  const sql = `SELECT id, username, email, is_admin FROM users`;
+  const rows = await queryDb(sql);
   return rows;
 }
 
 async function toggleAdmin(id) {
-  const q = `UPDATE users SET is_admin = NOT is_admin WHERE id = $1`;
-  const { affectedRows } = await queryCore(q, [id]);
+  const sql = `UPDATE users SET is_admin = NOT is_admin WHERE id = ?`;
+  const { affectedRows } = await exec(sql, [id]);
   return { affectedRows };
 }
 
 async function deleteUser(id) {
-  const q = `DELETE FROM users WHERE id = $1`;
-  const { affectedRows } = await queryCore(q, [id]);
+  const sql = `DELETE FROM users WHERE id = ?`;
+  const { affectedRows } = await exec(sql, [id]);
   return { affectedRows };
 }
 
+/* ------------------------- Repositorio: BLOGS ------------------------- */
+
 async function listAllBlogs() {
-  const q = `SELECT * FROM blogs`;
-  const { rows } = await queryCore(q);
+  const sql = `SELECT * FROM blogs`;
+  const rows = await queryDb(sql);
   return rows;
 }
 
 async function listPublicBlogs() {
-  const q = `SELECT * FROM blogs WHERE is_private = false`;
-  const { rows } = await queryCore(q);
+  // En MySQL, FALSE equivale a 0; también puedes usar `is_private = 0`
+  const sql = `SELECT * FROM blogs WHERE is_private = FALSE`;
+  const rows = await queryDb(sql);
   return rows;
 }
 
 async function getBlogById(id) {
-  const q = `SELECT * FROM blogs WHERE id = $1`;
-  const { rows } = await queryCore(q, [id]);
+  const sql = `SELECT * FROM blogs WHERE id = ?`;
+  const rows = await queryDb(sql, [id]);
   return rows;
 }
 
 async function createBlog({ title, content, authorName, url, is_private }) {
-  const q = `
+  const sql = `
     INSERT INTO blogs (title, content, author, url, is_private)
-    VALUES ($1,$2,$3,$4,$5)
-    RETURNING id
+    VALUES (?, ?, ?, ?, ?)
   `;
-  const { insertId } = await queryCore(q, [title, content, authorName || 'anonimo', url, !!is_private]);
+  const author = (authorName && authorName.trim()) ? authorName : 'anonimo';
+  const { insertId } = await exec(sql, [title, content, author, url, is_private ? 1 : 0]);
   return { insertId };
 }
 
+/* ----------------------- Repositorio: COMMENTS ------------------------ */
+
 async function insertComment(blogId, writer, comment) {
-  const q = `
+  const sql = `
     INSERT INTO comments (blog_id, writer, comment)
-    VALUES ($1,$2,$3)
-    RETURNING id
+    VALUES (?, ?, ?)
   `;
-  const { insertId } = await queryCore(q, [blogId, writer, comment]);
+  const { insertId } = await exec(sql, [blogId, writer, comment]);
   return { insertId };
 }
 
 async function insertCommentFiles(commentId, filePaths) {
   if (!filePaths || !filePaths.length) return { affectedRows: 0 };
-  const q = `
-    INSERT INTO comment_files (comment_id, file_path)
-    SELECT $1, unnest($2::text[])
-  `;
-  const { affectedRows } = await queryCore(q, [commentId, filePaths]);
-  return { affectedRows };
+  const values = filePaths.map(fp => [commentId, fp]);
+
+  const connection = await connectDb();
+  if (!connection) return { affectedRows: 0 };
+
+  try {
+    const [result] = await connection.query(
+      'INSERT INTO comment_files (comment_id, file_path) VALUES ?',
+      [values]
+    );
+    const affectedRows = result?.affectedRows ?? 0;
+    return { affectedRows };
+  } catch (error) {
+    console.error('Error en bulk insert de comment_files:', error);
+    return { affectedRows: 0 };
+  } finally {
+    try { await connection.end(); } catch {}
+  }
 }
 
 async function listCommentsByBlogId(blogId) {
-  const q = `SELECT * FROM comments WHERE blog_id = $1`;
-  const { rows } = await queryCore(q, [blogId]);
+  const sql = `SELECT * FROM comments WHERE blog_id = ?`;
+  const rows = await queryDb(sql, [blogId]);
   return rows;
 }
 
 async function listFilesByCommentId(commentId) {
-  const q = `SELECT * FROM comment_files WHERE comment_id = $1`;
-  const { rows } = await queryCore(q, [commentId]);
+  const sql = `SELECT * FROM comment_files WHERE comment_id = ?`;
+  const rows = await queryDb(sql, [commentId]);
   return rows;
 }
 
 async function getUserNameById(userId) {
-  const q = `SELECT firstname, lastname FROM users WHERE id = $1`;
-  const { rows } = await queryCore(q, [userId]);
+  const sql = `SELECT firstname, lastname FROM users WHERE id = ?`;
+  const rows = await queryDb(sql, [userId]);
   if (!rows || !rows.length) return null;
   const { firstname, lastname } = rows[0];
   return `${firstname || ''} ${lastname || ''}`.trim();

@@ -2,20 +2,14 @@
 ARG DB_VERSION=17.5
 FROM postgres:${DB_VERSION}
 
-# Variables de entorno (ya vienen en la imagen oficial, pero las dejamos explícitas)
+# Environment variables (they already come in the official image, but we leave them explicit)
 ENV POSTGRES_PASSWORD=admin
 ENV POSTGRES_USER=admin
 ENV POSTGRES_DB=web_app
 ENV INIT_SQL_PATH=/docker-entrypoint-initdb.d/create_tables.sql
 
-# Copiar el script SQL para la inicialización
+# Copy the SQL script for initialization
 COPY ../database/postgres/create_tables.sql ${INIT_SQL_PATH}
 
-# Puerto que expone PostgreSQL
+# Port that PostgreSQL exposes
 EXPOSE 5432
-
-# La imagen oficial de Postgres ya gestiona el initdb y el arranque automático,
-# y ejecuta cualquier script SQL ubicado en /docker-entrypoint-initdb.d al inicio.
-
-# No es necesario CMD porque la imagen oficial ya tiene uno definido que hace:
-#   initdb, start de postgres, etc.

@@ -17,7 +17,7 @@ const { insertUser, getUserByUsername, getUserById, updateUserProfile, listUsers
 const app = express();
 const port = 80;
 
-// Configuración de CORS
+// CORS Configuration
 const corsOptions = {
   origin: '*', // Especifica qué dominios pueden acceder
   methods: ['GET', 'POST'], // Métodos permitidos
@@ -30,7 +30,7 @@ app.use(bodyParser.json());
 app.use(cors(corsOptions));
 app.use(cookieParser());
 
-// Configurar multer para almacenar los archivos en la carpeta "public/images/avatars"
+// Configure multer to store files in the "public/images/avatars" folder
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
       const uploadPath = path.join(__dirname, 'public', 'images', 'avatars');
@@ -46,7 +46,7 @@ const storage = multer.diskStorage({
   },
 });
 
-// Configurar multer para almacenar los archivos adjuntos de comentarios
+// Configure multer to store comment attachment files
 const commentStorage = multer.diskStorage({
   destination: (req, file, cb) => {
       cb(null, 'public/uploads/'); // Carpeta donde se guardan los archivos
@@ -59,7 +59,7 @@ const commentStorage = multer.diskStorage({
 const uploadCommentFiles = multer({ storage: commentStorage });
 const upload = multer({ storage });
 
-// Middleware para autenticar usuarios usando la cookie "session"
+// Middleware to authenticate users using the "session" cookie
 const authenticateUser = (req, res, next) => {
   const sessionCookie = req.cookies.session;
 
@@ -79,10 +79,10 @@ const authenticateUser = (req, res, next) => {
 };
 
 
-// Middleware para servir archivos estáticos desde la carpeta "public"
+// Middleware to serve static files from the "public" folder
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Rutas específicas para cada archivo HTML
+// Specific routes for each HTML file
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -111,15 +111,13 @@ app.get('/blog/:id', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'blog-details.html'));
 });
 
-// Logout (eliminar cookie)
+// Logout (delete cookie)
 app.get('/logout', (req, res) => {
   res.clearCookie('session');
   res.redirect('/'); // Redirige a la página de inicio
 });
 
-// Rutas de API
-
-// Registro de usuario
+// User registration
 app.post('/api/v1/register', upload.single('avatar'), async (req, res) => {
   const { username,firstname, lastname, email, password } = req.body;
 
@@ -154,7 +152,7 @@ app.post('/api/v1/register', upload.single('avatar'), async (req, res) => {
     }
   });
 
-// Login con autenticación por cookie
+// Login with cookie authentication
 app.post('/api/v1/login', async(req, res) => {
   const { username, password } = req.body;
 
@@ -194,7 +192,7 @@ app.post('/api/v1/login', async(req, res) => {
 });
 
 
-// Obtener datos del usuario autenticado
+// Get authenticated user data
 app.get('/api/v1/user/me', authenticateUser, async(req, res) => {
 
   if (!req.user) return res.status(401).json({ message: 'No autenticado' });
@@ -326,9 +324,19 @@ app.post('/api/v1/users/import-xml', authenticateUser, async (req, res) => {
 // Insecure ping 
 app.post('/api/v1/ping', authenticateUser, (req, res) => {
   const  host  = req.body.host;
-  console.log('Haciendo ping a:', host);
-  exec('ping ' + host, (error, stdout, stderr) => {
-    //if (error) return res.status(500).json({ message: 'Error ejecutando ping', error: stderr });
+  
+  const isWindows = process.platform === 'win32';
+  const cmd = isWindows 
+    ? `ping -n 4 ${host}` 
+    : `ping -c 4 ${host}`;
+
+  console.log('Ejecutando:', cmd);
+
+  exec(cmd, (error, stdout, stderr) => {
+    if (error) {
+      return res.status(500).json({ error: stderr });
+    }
+
     res.json({ output: stdout });
   });
 });
@@ -395,7 +403,7 @@ app.post('/api/v1/blog/:blog_id/comments', authenticateUser, uploadCommentFiles.
   }
 });
 
-// Ver los comentarios del blog con sus archivos
+// View the blog comments with their files
 app.get('/api/v1/blog/:blog_id/comments', authenticateUser, async (req, res) => {
   const { blog_id } = req.params;
 
@@ -457,7 +465,7 @@ app.get("/api/v1/update-welcome", async (req, res) => {
 });
 
 
-// Inicia el servidor
+// Start the server
 app.listen(port, () => {
   console.log(`Servidor escuchando en http://localhost:${port}`);
 });

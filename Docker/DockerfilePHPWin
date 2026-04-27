@@ -1,4 +1,4 @@
-# Imagen base de Windows Server Core con IIS
+# Base image of Windows Server Core with IIS
 FROM mcr.microsoft.com/windows/servercore:ltsc2019
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';"]
@@ -6,7 +6,8 @@ SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';"]
 RUN Install-WindowsFeature -Name Web-Server
 
 # Download and install PHP
-ENV VERSION=8.4.8
+ARG WEB_VERSION=8.4.8
+ENV VERSION=$WEB_VERSION
 ENV PHP_DIR=C:\php
 
 RUN Invoke-WebRequest  -Uri $('https://windows.php.net/downloads/releases/archives/php-{0}-Win32-vs17-x64.zip' -f $env:VERSION) -OutFile "C:\\php.zip" ; \
@@ -18,13 +19,13 @@ RUN Invoke-WebRequest   -Uri "https://aka.ms/vs/17/release/vc_redist.x64.exe" -O
   Start-Process -FilePath "C:\\vc_redist.x64.exe" -ArgumentList "/install", "/quiet", "/norestart" -Wait ; \
   Remove-Item "C:\\vc_redist.x64.exe"
 
-# Instalar URL Rewrite Module
+# Install URL Rewrite Module
 RUN Invoke-WebRequest -Uri "https://download.microsoft.com/download/1/2/8/128E2E22-C1B9-44A4-BE2A-5859ED1D4592/rewrite_amd64_en-US.msi" -OutFile "rewrite.msi" ; \
     Start-Process msiexec.exe -ArgumentList '/i', 'rewrite.msi', '/quiet', '/norestart' -Wait ; \
     Remove-Item "rewrite.msi"
 
 
-# --- COPIAR PHP.INI DE EJEMPLO ---
+# --- COPY PHP.INI FROM EXAMPLE ---
 RUN Copy-Item "$env:PHP_DIR\\php.ini-development" "$env:PHP_DIR\\php.ini"
 
 RUN $content = Get-Content C:\php\php.ini ; \
@@ -37,7 +38,7 @@ RUN $content = Get-Content C:\php\php.ini ; \
 RUN icacls C:\php\php-cgi.exe /grant "IIS_IUSRS:RX"
 
 
-# --- CONFIGURAR IIS PARA PHP ---
+# --- CONFIGURE IIS FOR PHP ---
 RUN Import-Module WebAdministration; \
     if (-not (Test-Path IIS:\AppPools\PHPAppPool)) { \
         New-Item IIS:\AppPools\PHPAppPool; \

@@ -1,14 +1,17 @@
-# Usamos la imagen oficial de MySQL
-FROM mysql:latest
+ARG DB_VERSION=5.7
+FROM mysql:${DB_VERSION}
 
-# Variables de entorno para la configuración de MySQL
+# Environment variables to configure MySQL
 ENV MYSQL_ROOT_PASSWORD=root
 ENV MYSQL_DATABASE=web_app
 ENV MYSQL_USER=app_user
 ENV MYSQL_PASSWORD=app_password
 
-# Copiamos el script SQL para la inicialización en la carpeta adecuada
+# Disable secure-file-priv to allow LOAD DATA INFILE
+CMD ["mysqld", "--secure-file-priv="]
+
+# Copy the SQL script for initialization in the appropriate folder
 COPY ../database/mysql/create_tables.sql /docker-entrypoint-initdb.d/init.sql
 
-# Exponemos el puerto 3306
+# Expose port 3306
 EXPOSE 3306

@@ -1,33 +1,25 @@
-# Imagen base del runtime (Linux)
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+ARG WEB_VERSION=8.0
+FROM mcr.microsoft.com/dotnet/aspnet:${WEB_VERSION} AS base
 WORKDIR /app
 EXPOSE 80
 
-# Imagen de compilación
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:${WEB_VERSION} AS build
 WORKDIR /src
 
-# Copiar archivo de proyecto
 COPY ../ASPNETWebapp/ASPNETWebapp.csproj ./ASPNETWebapp/
 
-# Restaurar dependencias
 RUN dotnet restore ASPNETWebapp/ASPNETWebapp.csproj
 
-# Copiar todo el código
 COPY ../ASPNETWebapp/ ./ASPNETWebapp/
 
-# Copiar frontend estático al wwwroot del proyecto (se incluirá en el publish)
 COPY ../Frontend/public ./ASPNETWebapp/wwwroot/
 
-# Compilar
 WORKDIR /src/ASPNETWebapp
 RUN dotnet build -c Release -o /app/build
 
-# Publicar la aplicación
 FROM build AS publish
 RUN dotnet publish -c Release -o /app/publish
 
-# Imagen final
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .

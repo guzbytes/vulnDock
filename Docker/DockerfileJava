@@ -1,39 +1,32 @@
-# Usa una imagen base que ya trae Maven + JDK 21
 ARG WEB_VERSION=21
 FROM maven:3.9.6-eclipse-temurin-21 AS build
 
-# Establece el directorio de trabajo donde se construirá la app
+# Set the working directory where the app will be built
 WORKDIR /build
 
-# Copia los archivos necesarios para construir
+# Copy the necessary files to build
 COPY ../JavaWebapp/app/pom.xml .
 
-# Descarga las dependencias antes para cachear mejor
+# Download dependencies first for better caching
 RUN mvn dependency:go-offline
 
-# Ahora copiamos el código fuente
+# Now copy the source code and build the application
 COPY ../JavaWebapp/app/src ./src
-
-# Compila la aplicación
 RUN mvn clean package -DskipTests
-
-# Etapa final: usa una imagen más ligera solo con el JDK
 FROM eclipse-temurin:${WEB_VERSION}-jre-jammy
 
-# Instala el comando `ping`
+# Install the `ping` command
 RUN apt-get update && apt-get install -y iputils-ping && rm -rf /var/lib/apt/lists/*
 
-# Establece el directorio de trabajo en el contenedor final
+# Set the working directory in the final container
 WORKDIR /app
 
-# Copiamos el .jar desde la imagen de build
+# Copy the .jar from the build image
 COPY --from=build /build/target/app-0.0.1-SNAPSHOT.jar app.jar
-
-# Copia el contenido de la carpeta Frontend a la carpeta 'public' dentro del contenedor (sin la carpeta en sí)
 COPY ../Frontend/ .
 
-# Expone el puerto por defecto de Spring Boot
+# Expose the default Spring Boot port
 EXPOSE 80
 
-# Ejecuta la app
+# Run the app
 ENTRYPOINT ["java", "-jar", "app.jar"]

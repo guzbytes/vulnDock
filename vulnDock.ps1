@@ -6,52 +6,9 @@
 # Date: 16-06-2025
 # -------------------------------
 
-Clear-Host
 
-# Banner ASCII "vulnDock"
-$banner = @'
-             _       ____             _    
-__   ___   _| |_ __ |  _ \  ___   ___| | __
-\ \ / / | | | | '_ \| | | |/ _ \ / __| |/ /
- \ V /| |_| | | | | | |_| | (_) | (__|   < 
-  \_/  \__,_|_|_| |_|____/ \___/ \___|_|\_\
-                                            
-'@
+# Variables 
 
-Write-Host $banner -ForegroundColor Cyan
-
-Write-Host "==========================================="
-Write-Host "        Lightweight Vulnerability Lab       "
-Write-Host "==========================================="
-function Show-Help {
-    Show-Banner
-    Write-Host "Usage: vulnDock.ps1 [options]"
-    Write-Host ""
-    Write-Host "Options:"
-    Write-Host "  --os-system <linux|windows>       Specify the operating system"
-    Write-Host "  --database <mysql|postgres|mssql> Specify the database"
-    Write-Host "  --language <javascript|java|python|php|csharp> Specify the programming language"
-    Write-Host "  --help                           Show this help message"
-    Write-Host ""
-    Write-Host "Example:"
-    Write-Host "  .\vulnDock.ps1 --os-system linux --database mysql --language python"
-    exit 0
-}
-
-
-function Prompt-Choice($prompt, $options) {
-    Write-Host $prompt
-    for ($j = 0; $j -lt $options.Length; $j++) {
-        Write-Host "$($j+1)) $($options[$j])"
-    }
-    Write-Host ""
-    do {
-        $choice = Read-Host "Enter your choice (1-$($options.Length))"
-    } while (-not ($choice -match '^[1-9][0-9]*$') -or $choice -lt 1 -or $choice -gt $options.Length)
-    return $options[$choice - 1]
-}
-
-# Parse command line arguments manually to allow --flag value style
 $validOsOptions = @("linux", "windows")
 $validDbOptions = @("mysql", "postgres", "mssql")
 $validLangOptions = @("javascript", "java", "python", "php", "csharp")
@@ -86,34 +43,71 @@ $dockerfilesWeb = @{
     }
 }
 
-# DB Versions
 $dbVersions = @{
-    "mysql"   = @("8.0.36", "8.4.3")
-    "postgres"= @("16", "17", "17.5")
-    "mssql"   = @("2019-latest", "2022-latest")
-}
-
-# WEb Versions
-$webVersions = @{
     "linux" = @{
-        "javascript" = @("18.20.3-alpine", "20-alpine")        # Node
-        "python"     = @("3.10-alpine", "3.11-alpine")
-        "php"        = @("8.2-apache", "8.3-apache")
-        "java"       = @("17-jdk", "21-jdk")                   # Eclipse Temurin / OpenJDK según Dockerfile
-        "csharp"     = @("8.0")                                # .NET 8 runtime (ver Dockerfile)
+        "mysql"    = @("5.7", "8.0.36", "8.4.3")
+        "postgres" = @("9.6","12", "16", "17", "17.5")
+        "mssql"    = @("2017-latest", "2019-latest", "2022-latest")
     }
     "windows" = @{
-        "javascript" = @("18.20.3-windowsservercore-ltsc2019", "20.11.1-windowsservercore-ltsc2019")
-        "python"     = @("3.10.13-windowsservercore-ltsc2019", "3.11.7-windowsservercore-ltsc2019")
-        "php"        = @("8.2")  # si usas imagenes PHP para Windows personalizadas; si no, usar IIS/ASP.NET
-        "java"       = @("17-jdk-windowsservercore-ltsc2019", "21-jdk-windowsservercore-ltsc2019")
-        "csharp"     = @("8.0-nanoserver-ltsc2019")            # mcr.microsoft.com/dotnet/aspnet:8.0-nanoserver-ltsc2019
+        "mysql"    = @("5.7.13", "8.0.36", "8.4.3")
+        "postgres" = @("17.5-1","14.13-1", "16.4-1")
+        "mssql"    = @("2017-latest", "2019-latest", "2022-latest")
+    }
+}
+
+$webVersions = @{
+    "linux" = @{
+        "javascript" = @("21-alpine", "20-alpine", "18-alpine")       
+        "python"     = @("3.10-alpine", "3.11-alpine")
+        "php"        = @("8.2-apache", "8.3-apache")
+        "java"       = @("17-jdk", "21-jdk")                   
+    }
+    "windows" = @{
+        "javascript" = @("20.8.1", "22.22.2", "18.20.1", "24.15.0")       
+        "python"     = @("3.9.3", "3.11.7")
+        "php"        = @("8.4.8")  
+        "java"       = @("21-jdk", "17-jdk")
+        "csharp"     = @("8.0-windowsservercore-ltsc2022", "8.0-windowsservercore-ltsc2019")            
     }
 }
 
 $backendFolders = @{ "php" = ".\PHPWebapp"; "javascript" = ".\NodeJSWebapp"; "java" = ".\JavaWebapp"; "csharp" = ".\ASPNETWebapp"; "python" = ".\PythonWebapp" }
 $relativeConnectorPaths = @{ "php" = "services"; "javascript" = "."; "java" = "app\src\main\java\com\webapp\app"; "csharp" = "Services"; "python" = "." }
 $extensions = @{ "php" = "php"; "javascript" = "js"; "java" = "java"; "csharp" = "cs"; "python" = "py" }
+
+
+
+
+function Show-Help {
+    Show-Banner
+    Write-Host "Usage: vulnDock.ps1 [options]"
+    Write-Host ""
+    Write-Host "Options:"
+    Write-Host "  --os-system <linux|windows>       Specify the operating system"
+    Write-Host "  --database <mysql|postgres|mssql> Specify the database"
+    Write-Host "  --language <javascript|java|python|php|csharp> Specify the programming language"
+    Write-Host "  --help                           Show this help message"
+    Write-Host ""
+    Write-Host "Example:"
+    Write-Host "  .\vulnDock.ps1 --os-system linux --database mysql --language python"
+    exit 0
+}
+
+
+function Prompt-Choice($prompt, $options) {
+    Write-Host $prompt
+    for ($j = 0; $j -lt $options.Length; $j++) {
+        Write-Host "$($j+1)) $($options[$j])"
+    }
+    Write-Host ""
+    do {
+        $choice = Read-Host "Enter your choice (1-$($options.Length))"
+    } while (-not ($choice -match '^[1-9][0-9]*$') -or $choice -lt 1 -or $choice -gt $options.Length)
+    return $options[$choice - 1]
+}
+
+# Parse command line arguments manually to allow --flag value style
 function Replace-DbConnector {
     param(
         [string]$language,
@@ -123,7 +117,7 @@ function Replace-DbConnector {
     if (-not $backendFolders.ContainsKey($language) -or
         -not $relativeConnectorPaths.ContainsKey($language) -or
         -not $extensions.ContainsKey($language)) {
-        Write-Warning "Lenguaje no soportado: $language"
+        Write-Warning "Language not supported: $language"
         return
     }
 
@@ -138,20 +132,12 @@ function Replace-DbConnector {
 
 
     if (-not (Test-Path $sourceFile)) {
-        Write-Warning "Archivo origen no encontrado: $sourceFile"
+        Write-Warning "Source file not found: $sourceFile"
         return
     }
 
     Write-Host "Copying $sourceFile -> $destinationFile"
     Copy-Item -Path $sourceFile -Destination $destinationFile -Force
-}
-
-
-function Prompt-Choice($prompt, $options) {
-    Write-Host $prompt
-    for ($j = 0; $j -lt $options.Length; $j++) { Write-Host "$($j+1)) $($options[$j])" }
-    do { $choice = Read-Host "Enter choice (1-$($options.Length))" } while (-not ($choice -match '^[1-9][0-9]*$') -or $choice -lt 1 -or $choice -gt $options.Length)
-    return $options[$choice - 1]
 }
 
 function Build-DockerComposeDynamic {
@@ -164,6 +150,8 @@ services:
     build:
       context: .
       dockerfile: $dockerfileDb
+      args:
+        DB_VERSION: $dbVersion
     hostname: db
     ports:
       - "$(if ($db -eq "mssql") {"1433"} elseif ($db -eq "postgres") {"5432"} else {"3306"}):$(if ($db -eq "mssql") {"1433"} elseif ($db -eq "postgres") {"5432"} else {"3306"})"
@@ -172,6 +160,8 @@ services:
     build:
       context: .
       dockerfile: $dockerfileWeb
+      args:
+        WEB_VERSION: $webVersion
     ports:
       - "80:80"
     depends_on:
@@ -179,13 +169,13 @@ services:
 "@
 }
 
-function Copy-FoldersForWindows {
-    param($lang, $db)
-    $backendSrc = $backendFolders[$lang]
-    Copy-Item -Recurse ".\Frontend" ".\Docker\frontend" -Force
-    Copy-Item -Recurse $backendSrc ".\Docker\backend" -Force
-    Copy-Item -Recurse ".\database" ".\Docker\database" -Force
-}
+#function Copy-FoldersForWindows {
+#    param($lang, $db)
+#    $backendSrc = $backendFolders[$lang]
+#    Copy-Item -Recurse ".\Frontend" ".\Docker\frontend" -Force
+#    Copy-Item -Recurse $backendSrc ".\Docker\backend" -Force
+#    Copy-Item -Recurse ".\database" ".\Docker\database" -Force
+#}
 
 function Inicialize-Docker {
     docker info > $null 2>&1
@@ -273,41 +263,74 @@ function Remove-FoldersForWindows {
 
 }
 
+Clear-Host
+
+# Banner ASCII "vulnDock"
+$banner = @'
+             _       ____             _    
+__   ___   _| |_ __ |  _ \  ___   ___| | __
+\ \ / / | | | | '_ \| | | |/ _ \ / __| |/ /
+ \ V /| |_| | | | | | |_| | (_) | (__|   < 
+  \_/  \__,_|_|_| |_|____/ \___/ \___|_|\_\
+                                            
+'@
+
+Write-Host $banner -ForegroundColor Cyan
+
+Write-Host "==========================================="
+Write-Host "        Lightweight Vulnerability Lab       "
+Write-Host "==========================================="
+
 $osSystem = Prompt-Choice "Select OS:" $validOsOptions
 $database = Prompt-Choice "Select DB:" $validDbOptions
 $language = Prompt-Choice "Select Language:" $validLangOptions
+# DB version
+$dbVersionChoice = Prompt-Choice "Select DB version (default: $($dbVersions[$osSystem][$database][0])):" ($dbVersions[$osSystem][$database] + @("custom"))
+if ($dbVersionChoice -eq "custom") {
+    $dbVersion = Read-Host "Enter custom DB version(no guarantee it will work correctly)"
+} else {
+    $dbVersion = $dbVersionChoice
+}
 
-$composeContent = Build-DockerComposeDynamic -os $osSystem -db $database -lang $language
+# Web version
+$webVersionChoice = Prompt-Choice "Select Web version (default: $($webVersions[$osSystem][$language][0])):" ($webVersions[$osSystem][$language] + @("custom"))
+if ($webVersionChoice -eq "custom") {
+    $webVersion = Read-Host "Enter custom Web version(no guarantee it will work correctly)"
+} else {
+    $webVersion = $webVersionChoice
+}
+$composeContent = Build-DockerComposeDynamic -os $osSystem -db $database -lang $language -dbVer $dbVersion -webVer $webVersion
 Replace-DbConnector -language $language -database $database
+
 Set-Content -Path "docker-compose.yml" -Value $composeContent -Encoding UTF8
 Write-Host "Generated docker-compose.yml"
-
-#if ($osSystem -eq "windows") { Copy-FoldersForWindows -lang $language -db $database }
-
 Write-Host "Starting Docker..."
-
 
 Inicialize-Docker
 Sleep 10
 Ensure-DockerEngineMatchesOSSystem -osSystem $osSystem
 sleep 10
-docker-compose up -d
+#$deployTime = (Measure-Command { docker compose up -d }).TotalSeconds Not used for lossing the output
 
+$start = Get-Date
+docker compose build --no-cache
+docker compose up -d
+#docker compose up -d 
+$deployTime = ((Get-Date) - $start).TotalSeconds
+Write-Host "Deployment completed in $deployTime seconds."
 Write-Host "Press 'q' to quit and cleanup..."
 
 while ($true) {
     $key = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     if ($key.Character -eq 'q') {
         Write-Host "`n'q' pressed. Cleaning up..."
-        del ASPNETWebapp\DatabaseConnector.cs -ErrorAction SilentlyContinue
         $deleteContainer = Read-Host "Delete Docker container? (Y/N)"
         if ($deleteContainer.ToUpper() -eq 'Y') {
             docker-compose down --volumes --remove-orphans
         } else {
             docker-compose stop
-        }        
-        if ($osSystem -eq "windows") { Remove-FoldersForWindows }
-        $deleteImg = Read-Host "Delete Docker images? (Y/N)"
+        }
+        $deleteImg = Read-Host "Delete Docker images? (Y/N)"        
         if ($deleteImg.ToUpper() -eq 'Y') {
             docker rmi -f vulndock-db vulndock-web
         }

@@ -1,8 +1,8 @@
--- Usar la base de datos web_app (debes crearla antes)
+-- Use the web_app database (you must create it before)
 USE web_app;
 GO
 
--- Tabla de usuarios
+-- Users table
 CREATE TABLE users (
     id INT IDENTITY(1,1) PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
@@ -15,7 +15,7 @@ CREATE TABLE users (
 );
 GO
 
--- Tabla de blogs
+-- Blogs table
 CREATE TABLE blogs (
     id INT IDENTITY(1,1) PRIMARY KEY,
     author VARCHAR(100) NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE blogs (
 );
 GO
 
--- Tabla de comentarios
+-- Comments table
 CREATE TABLE comments (
     id INT IDENTITY(1,1) PRIMARY KEY,
     blog_id INT NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE comments (
 );
 GO
 
--- Tabla para archivos adjuntos a comentarios
+-- Table for files attached to comments
 CREATE TABLE comment_files (
     id INT IDENTITY(1,1) PRIMARY KEY,
     comment_id INT NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE comment_files (
 );
 GO
 
--- Insertar usuario admin
+-- Insert admin user
 INSERT INTO users (username, firstname, lastname, email, password, is_admin, avatar) 
 VALUES ('admin', 'Admin', 'User', 'admin@example.com', '$2b$10$ZeJ8Gl/WX6DMLi/zve0Qte7YJY2QJwUFnV0JhtxpM.Xq7ZD.REDi2', 1, NULL);
 GO

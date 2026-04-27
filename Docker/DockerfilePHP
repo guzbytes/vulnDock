@@ -1,5 +1,6 @@
 # Use official PHP image as base image
-FROM php:7.4-apache
+ARG WEB_VERSION=7.4
+FROM php:${WEB_VERSION}-apache
 
 # Create a directory for the PHP files
 WORKDIR /var/www/html/

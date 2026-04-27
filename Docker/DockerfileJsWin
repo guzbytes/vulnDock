@@ -3,7 +3,8 @@ FROM mcr.microsoft.com/windows/servercore:ltsc2019 AS download
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ENV WEB_VERSION=20.8.1
+ARG WEB_VERSION=20.8.1
+ENV WEB_VERSION=$WEB_VERSION
 RUN Invoke-WebRequest $('https://nodejs.org/dist/v{0}/node-v{0}-win-x64.zip' -f $env:WEB_VERSION) -OutFile 'node.zip' -UseBasicParsing ; \
     Expand-Archive node.zip -DestinationPath C:\ ; \
     Rename-Item -Path $('C:\node-v{0}-win-x64' -f $env:WEB_VERSION) -NewName 'C:\nodejs'

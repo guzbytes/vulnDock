@@ -3,6 +3,8 @@
     build:
       context: .
       dockerfile: Docker/DockerfileMySQLWin
+      args:
+        DB_VERSION: 5.7.13
     hostname: db
     ports:
       - "3306:3306"
@@ -10,7 +12,9 @@
   web:
     build:
       context: .
-      dockerfile: Docker/DockerfileJavaWin
+      dockerfile: Docker/DockerfilePythonWin
+      args:
+        WEB_VERSION: 3.9.3
     ports:
       - "80:80"
     depends_on:
