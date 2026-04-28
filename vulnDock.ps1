@@ -3,7 +3,7 @@
 # ================================
 # Lightweight Vulnerability Lab Setup Tool
 # Author: Adrian Guzman
-# Date: 16-06-2025
+# Date: 30-05-2026
 # -------------------------------
 
 
@@ -59,9 +59,10 @@ $dbVersions = @{
 $webVersions = @{
     "linux" = @{
         "javascript" = @("21-alpine", "20-alpine", "18-alpine")       
-        "python"     = @("3.10-alpine", "3.11-alpine")
-        "php"        = @("8.2-apache", "8.3-apache")
-        "java"       = @("17-jdk", "21-jdk")                   
+        "python"     = @("3-slim", "3.10-alpine", "3.11-alpine")
+        "php"        = @("7.4", "8.2")
+        "java"       = @("21", "17")       
+        "csharp"     = @("8.0")            
     }
     "windows" = @{
         "javascript" = @("20.8.1", "22.22.2", "18.20.1", "24.15.0")       
@@ -161,21 +162,13 @@ services:
       context: .
       dockerfile: $dockerfileWeb
       args:
-        WEB_VERSION: $webVersion
+        WEB_VERSION: "$webVersion"
     ports:
       - "80:80"
     depends_on:
       - db
 "@
 }
-
-#function Copy-FoldersForWindows {
-#    param($lang, $db)
-#    $backendSrc = $backendFolders[$lang]
-#    Copy-Item -Recurse ".\Frontend" ".\Docker\frontend" -Force
-#    Copy-Item -Recurse $backendSrc ".\Docker\backend" -Force
-#    Copy-Item -Recurse ".\database" ".\Docker\database" -Force
-#}
 
 function Inicialize-Docker {
     docker info > $null 2>&1

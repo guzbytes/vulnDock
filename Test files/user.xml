@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<users>
+    <user>
+        <username>juan123</username>
+        <email>juan@example.com</email>
+        <firstname>Juan</firstname>
+        <lastname>Pérez</lastname>
+        <password>password123</password>
+        <is_admin>false</is_admin>
+    </user>
+    <user>
+        <username>maria456</username>
+        <email>maria@example.com</email>
+        <password>securepass</password>
+        <firstname>Juan</firstname>
+        <lastname>Pérez</lastname>
+        <is_admin>true</is_admin>
+
+    </user>
+    <user>
+        <username>carlos789</username>
+        <email>carlos@example.com</email>
+        <firstname>Juan</firstname>
+        <lastname>Pérez</lastname>
+        <password>mypassword</password>
+        <is_admin>false</is_admin>
+    </user>
+</users>

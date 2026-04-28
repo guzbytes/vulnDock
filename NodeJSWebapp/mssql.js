@@ -116,7 +116,6 @@ async function deleteUser(id) {
   return { affectedRows };
 }
 
-/* ------------------------- Repositorio: BLOGS ------------------------- */
 
 async function listAllBlogs() {
   const q = `SELECT * FROM blogs`;
@@ -146,8 +145,6 @@ async function createBlog({ title, content, authorName, url, is_private }) {
   const { insertId } = await exec(q, [title, content, author, url, is_private ? 1 : 0]);
   return { insertId };
 }
-
-/* ----------------------- Repositorio: COMMENTS ------------------------ */
 
 async function insertComment(blogId, writer, comment) {
   const q = `

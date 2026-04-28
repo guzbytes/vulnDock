@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cybersecurity blog</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="js/navbar.js"></script>
+    <script src="js/blog.js"></script>
+</head>
+<body>
+    <!-- Barra de navegación -->
+    <header class="navbar">
+        <div class="logo">
+            <h1>Cybersecurity Blogs</h1>
+        </div>
+        <nav class="nav-links">
+            <!-- Enlaces de navegación generados dinámicamente -->
+        </nav>
+        <div class="user-menu">
+            <i class="fas fa-user" id="user-icon"></i>
+            <div class="dropdown-content" id="dropdown">
+                <!-- El menú se generará dinámicamente -->
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <section id="welcome-section">
+            <h2 id="welcomeMessage" class="center-text">Cargando...</h2> <!-- Mensaje de bienvenida vulnerable -->
+        </section>
+        <section id="blog-list">
+            <div id="blogs">
+                <!-- Aquí se cargarán los blogs dinámicamente -->
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2026 Cybersecurity Blog. Todos los derechos reservados.</p>
+    </footer>
+    <p id="blogMessage"></p>
+
+    
+</body>
+</html>

@@ -1,0 +1,19 @@
+services:
+  db-apache:
+    build:
+      context: .
+      dockerfile: Dockerfile.dbapache
+    ports:
+      - "8080:80"
+
+  web:
+    image: node:18
+    hostname: web
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    ports:
+      - "80:80"
+    command: sh -c "npm install && node /app/app.js"
+    depends_on:
+      - db-apache

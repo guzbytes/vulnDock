@@ -2,19 +2,19 @@
   db:
     build:
       context: .
-      dockerfile: Docker/DockerfileMySQLWin
+      dockerfile: Docker/DockerfileMSSQL
       args:
-        DB_VERSION: 5.7.13
+        DB_VERSION: 2017-latest
     hostname: db
     ports:
-      - "3306:3306"
+      - "1433:1433"
 
   web:
     build:
       context: .
-      dockerfile: Docker/DockerfilePythonWin
+      dockerfile: Docker/DockerfileAspnet
       args:
-        WEB_VERSION: 3.9.3
+        WEB_VERSION: "8.0"
     ports:
       - "80:80"
     depends_on:

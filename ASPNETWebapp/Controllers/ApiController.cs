@@ -56,17 +56,15 @@ namespace MyProject.Controllers
                 var hashedPassword = BCrypt.Net.BCrypt.HashPassword(password);
                 var avatarUrl = $"/images/avatars/{filename}";
 
-                string sql = @"INSERT INTO users (username, firstname, lastname, email, password, avatar) 
-                               VALUES (@Username, @Firstname, @Lastname, @Email, @Password, @Avatar)";
-                DatabaseConnector.Execute(sql, new
-                {
-                    Username = username,
-                    Firstname = firstname,
-                    Lastname = lastname,
-                    Email = email,
-                    Password = hashedPassword,
-                    Avatar = avatarUrl
-                });
+                DatabaseConnector.InsertUser(
+                    username,
+                    firstname,
+                    lastname,
+                    email,
+                    hashedPassword,
+                    avatarUrl,
+                    false
+                );
 
                 return StatusCode(201, new { message = "Usuario registrado exitosamente" });
             }
@@ -80,18 +78,18 @@ namespace MyProject.Controllers
         [HttpPost("login")]
         public IActionResult Login([FromForm] string username, [FromForm] string password)
         {
-            string sql = "SELECT * FROM users WHERE username = @Username";
-            var user = DatabaseConnector.Query(sql, new { Username = username }).FirstOrDefault();
+            var users = DatabaseConnector.GetUserByUsername(username);
+            var user = users.FirstOrDefault();
             if (user == null)
                 return Unauthorized(new { message = "Usuario no encontrado" });
 
-            if (BCrypt.Net.BCrypt.Verify(password, (string)user.password))
+            if (BCrypt.Net.BCrypt.Verify(password, (string)user["password"]))
             {
                 var userData = new
                 {
-                    id = user.id,
-                    username = user.username,
-                    is_admin = user.is_admin ?? false
+                    id = user["id"],
+                    username = user["username"],
+                    is_admin = Convert.ToBoolean(user["is_admin"])
                 };
 
                 var json = JsonSerializer.Serialize(userData);
@@ -101,7 +99,9 @@ namespace MyProject.Controllers
                 {
                     HttpOnly = false,
                     MaxAge = TimeSpan.FromHours(1),
-                    Path = "/"
+                    Path = "/",
+                    SameSite = SameSiteMode.Lax,
+                    Secure = false,
                 });
 
                 return Ok(new { message = "Login exitoso", user = userData });
@@ -123,14 +123,25 @@ namespace MyProject.Controllers
             try
             {
                 var decoded = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(session));
-                var userData = JsonSerializer.Deserialize<Dictionary<string, object>>(decoded);
-                var id = userData["id"].ToString();
+                var userData = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(decoded);
 
-                string sql = "SELECT id, username, firstname, lastname, email, avatar FROM users WHERE id = @Id";
-                var user = DatabaseConnector.Query(sql, new { Id = id }).FirstOrDefault();
+                if (userData == null || !userData.TryGetValue("id", out var idValue) || idValue.ValueKind == JsonValueKind.Null)
+                    return Unauthorized(new { message = "Sesión inválida" });
+
+                int id = idValue.GetInt32();
+
+                var user = DatabaseConnector.GetUserById(id).FirstOrDefault();
 
                 if (user != null)
-                    return Ok(user);
+                    return Ok(new
+                    {
+                        id = user["id"],
+                        username = user["username"],
+                        firstname = user["firstname"],
+                        lastname = user["lastname"],
+                        email = user["email"],
+                        avatar = user["avatar"]?.ToString()
+                    });
 
                 return NotFound(new { message = "Usuario no encontrado" });
             }
@@ -150,34 +161,35 @@ namespace MyProject.Controllers
             try
             {
                 string decoded = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(session));
-                var userData = JsonSerializer.Deserialize<Dictionary<string, object>>(decoded);
-                if (!userData.TryGetValue("id", out var idValue) || idValue == null)
-                {
+                var userData = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(decoded);
+                if (!userData.TryGetValue("id", out var idValue))
                     throw new InvalidOperationException("User ID is null.");
-                }
-                string userId = idValue.ToString();
+                int userId = idValue.GetInt32();
 
-                Console.WriteLine("User ID: " + userId);
                 string firstName = form.GetValueOrDefault("firstName");
                 string lastName = form.GetValueOrDefault("lastName");
                 string email = form.GetValueOrDefault("email");
                 string newPassword = form.GetValueOrDefault("newPassword");
 
-                Console.WriteLine("First Name: " + firstName);
 
                 if (firstName == null || lastName == null || email == null)
                     return BadRequest(new { message = "Nombre, Apellidos y Correo son obligatorios." });
 
-                var query = new StringBuilder($"UPDATE users SET firstname = '{firstName}', lastname = '{lastName}', email = '{email}'");
 
+                string hashedPassword = null;
                 if (!string.IsNullOrEmpty(newPassword))
                 {
-                    string hashed = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(newPassword));
-                    query.Append($", password = '{hashed}'");
+                    hashedPassword = BCrypt.Net.BCrypt.HashPassword(newPassword);
                 }
 
-                query.Append($" WHERE id = {userId}");
-                DatabaseConnector.Execute(query.ToString());
+                DatabaseConnector.UpdateUserProfile(
+                    userId,
+                    firstName,
+                    lastName,
+                    email,
+                    hashedPassword,
+                    null
+                );
 
                 return Ok(new { message = "Perfil actualizado con éxito" });
             }
@@ -197,16 +209,23 @@ namespace MyProject.Controllers
             try
             {
                 string decoded = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(session));
-                var userData = JsonSerializer.Deserialize<Dictionary<string, object>>(decoded);
-                string userId = userData["id"]?.ToString() ?? throw new InvalidOperationException("User ID is null.");
+                var userData = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(decoded);
 
-                var isAdminResult = DatabaseConnector.Query("SELECT is_admin FROM users WHERE id = " + userId);
-                var row = isAdminResult.FirstOrDefault();
+                if (userData == null || !userData.TryGetValue("id", out var idValue))
+                    return Unauthorized(new { message = "Sesión inválida" });
 
-                if (!(bool)row.is_admin)
-                    return Forbid();
+                int userId = idValue.GetInt32();
 
-                var users = DatabaseConnector.Query("SELECT id, username, email, is_admin FROM users");
+                Console.WriteLine("User ID from session: " + userId);
+
+                var user = DatabaseConnector.GetUserById(userId).FirstOrDefault();
+                Console.WriteLine("User data from DB: " + JsonSerializer.Serialize(user));
+                if (!Convert.ToBoolean(user["is_admin"])) return Forbid();
+
+                Console.WriteLine("Usuario admin: " + user["is_admin"]);
+
+                var users = DatabaseConnector.ListUsers();
+                Console.WriteLine("Usuarios obtenidos: " + JsonSerializer.Serialize(users));
                 return Ok(users);
             }
             catch
@@ -218,10 +237,9 @@ namespace MyProject.Controllers
         [HttpGet("users/{userId}/toggle-admin")]
         public IActionResult ToggleAdmin(int userId)
         {
-            string query = $"UPDATE users SET is_admin = NOT is_admin WHERE id = {userId}";
-            int rows = DatabaseConnector.Execute(query);
+            dynamic result = DatabaseConnector.ToggleAdmin(userId);
 
-            if (rows == 0)
+            if (result.affectedRows == 0)
                 return NotFound(new { message = "Usuario no encontrado" });
 
             return Ok(new { message = "Rol de admin actualizado correctamente" });
@@ -236,12 +254,12 @@ namespace MyProject.Controllers
             try
             {
                 string decoded = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(session));
-                var userData = JsonSerializer.Deserialize<Dictionary<string, object>>(decoded);
+                var userData = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(decoded);
                 string isAdmin = userData["is_admin"].ToString();
 
                 if (isAdmin.Equals("true", StringComparison.OrdinalIgnoreCase))
                 {
-                    DatabaseConnector.Execute($"DELETE FROM users WHERE id = {userId}");
+                    DatabaseConnector.DeleteUser(userId);;
                     return Ok(new { message = "Usuario eliminado" });
                 }
                 else
@@ -273,17 +291,15 @@ namespace MyProject.Controllers
 
                 foreach (var user in usersData)
                 {
-                    Console.WriteLine("Importando usuario: " + JsonSerializer.Serialize(user));
-                    DatabaseConnector.Execute(
-                    "INSERT INTO users (username, firstname, lastname, email, password, is_admin) VALUES (@username, @firstname, @lastname, @email, @password, @is_admin)",
-                    new {
-                        username = user["username"],
-                        firstname = user["firstname"],
-                        lastname = user["lastname"],
-                        email = user["email"],
-                        password = user["password"],
-                        is_admin = user["is_admin"]
-                    });
+                    DatabaseConnector.InsertUser(
+                        user["username"].ToString(),
+                        user["firstname"].ToString(),
+                        user["lastname"].ToString(),
+                        user["email"].ToString(),
+                        user["password"].ToString(),
+                        null,
+                        Convert.ToBoolean(user["is_admin"])
+                    );
                 }
 
                 return Ok(new { message = "Usuarios importados exitosamente" });
@@ -316,16 +332,16 @@ namespace MyProject.Controllers
                     string email = user["email"].InnerText;
                     string password = user["password"].InnerText;
 
-                   DatabaseConnector.Execute(
-                        "INSERT INTO users (username, firstname, lastname, email, password) VALUES (@username, @firstname, @lastname, @email, @password)",
-                        new {
-                            username,
-                            firstname,
-                            lastname,
-                            email,
-                            password
-                        });
-                    }
+                   DatabaseConnector.InsertUser(
+                        username,
+                        firstname,
+                        lastname,
+                        email,
+                        password,
+                        null,
+                        false
+                    );
+                }
 
                 return Ok(new { message = "Usuarios importados desde XML exitosamente" });
             }
@@ -383,16 +399,17 @@ namespace MyProject.Controllers
         {
             try
             {
-                // Obtener el valor de la cookie 'session'
+                List<Dictionary<string, object>> blogs;
                 string session = Request.Cookies["session"];
                 
-                string query = "SELECT * FROM blogs";
                 if (string.IsNullOrEmpty(session))
                 {
-                    query = "SELECT * FROM blogs WHERE is_private = false";
+                    blogs = DatabaseConnector.ListPublicBlogs();
                 }
-
-                var blogs = DatabaseConnector.Query(query);
+                else
+                {
+                    blogs = DatabaseConnector.ListAllBlogs();
+                }
                 return Ok(blogs);
             }
             catch (Exception e)
@@ -409,7 +426,7 @@ namespace MyProject.Controllers
             try
             {
                 string query = "SELECT * FROM blogs WHERE id = " + blog_id;
-                var blog = DatabaseConnector.Query(query).ToList(); // Convertirlo explícitamente a una lista
+                var blog = DatabaseConnector.GetBlogById(blog_id);
                 if (blog.Count == 0) return NotFound(new { error = "Blog no encontrado" });
                 return Ok(blog[0]);
             }
@@ -436,52 +453,31 @@ namespace MyProject.Controllers
                 {
                     try
                     {
-                        // Decodificar la cookie 'session' (Base64)
                         string json = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(sessionCookie));
 
-                        // Deserializar el JSON para obtener los datos del usuario
                         var userData = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
                         int userId = Convert.ToInt32(userData["id"]);
 
-                        // Consultar el nombre de usuario desde la base de datos
-                        var user = DatabaseConnector.Query("SELECT username FROM users WHERE id = " + userId);
-                        if (user != null && user.Count() > 0)
+                        var user = DatabaseConnector.GetUserNameById(userId);
+                        if (!string.IsNullOrEmpty(user))
                         {
-                            username = (string)user.FirstOrDefault()?["username"];
+                            username = user;
                         }
                     }
                     catch (FormatException)
                     {
-                        // Si ocurre un error en la decodificación, puede manejarlo aquí.
                         Console.WriteLine("Error al procesar la cookie de sesión.");
                     }
                     catch (JsonException)
                     {
-                        // Si ocurre un error al deserializar el JSON.
                         Console.WriteLine("Error al deserializar la cookie de sesión.");
                     }
                 }
 
-                // Insertar el comentario en la base de datos
-                string insert = "INSERT INTO comments (blog_id, writer, comment) VALUES (" + blog_id + ", '" + username + "', '" + content + "')";
-                DatabaseConnector.Query(insert);
-
-                // Obtener el ID del comentario insertado
-                //var commentIdList = DatabaseConnector.Query("SELECT MAX(id) FROM comments WHERE blog_id = " + blog_id);
-                var commentIdResult = DatabaseConnector.Query("SELECT id FROM comments ORDER BY id DESC LIMIT 1");
-                int commentId = 0;
-                var row = commentIdResult.FirstOrDefault();
-
-                Console.WriteLine("ID del comentario insertado: " + Convert.ToString(commentIdResult.FirstOrDefault()));
-                commentId = (int)row.id;
+                dynamic result = DatabaseConnector.InsertComment(blog_id, username, content);
+                int commentId = Convert.ToInt32(result.insertId);
                 
-                Console.WriteLine("ID del comentario insertado: " + commentId);
-                //var row = commentIdList.FirstOrDefault() as Dictionary<string, object>;
-                //if (row != null && row.TryGetValue("LAST_INSERT_ID()", out var idValue))
-                //{
-                  //  int.TryParse(idValue.ToString(), out commentId);
-               // }
-                // Subir los archivos adjuntos al comentario
+                
                 var fileEntries = new List<Dictionary<string, object>>();
                 if (files != null)
                 {
@@ -496,9 +492,7 @@ namespace MyProject.Controllers
                             {
                                 file.CopyTo(fileStream);
                             }
-                            Console.WriteLine("Archivo subido: " + commentId);
-                            string q = "INSERT INTO comment_files (comment_id, file_path) VALUES (" + commentId + ", '" + filePath + "')";
-                            DatabaseConnector.Query(q);
+                            DatabaseConnector.InsertCommentFiles(commentId, new List<string> { filePath });
                             fileEntries.Add(new Dictionary<string, object> { { "comment_id", commentId }, { "file_path", filePath } });
                         }
                         catch (IOException e)
@@ -533,8 +527,7 @@ namespace MyProject.Controllers
         {
             try
             {
-                string query = "SELECT * FROM comments WHERE blog_id = " + blog_id;
-                var comments = DatabaseConnector.Query(query);
+                var comments = DatabaseConnector.ListCommentsByBlogId(blog_id);;
 
                 Console.WriteLine("Comentarios obtenidos: " + JsonSerializer.Serialize(comments));
 
@@ -543,9 +536,7 @@ namespace MyProject.Controllers
                 {
                     int commentId = Convert.ToInt32(((IDictionary<string, object>)comment)["id"]);
 
-                    // Obtener archivos asociados
-                    string fileQuery = "SELECT * FROM comment_files WHERE comment_id = " + commentId;
-                    var files = DatabaseConnector.Query(fileQuery);
+                    var files = DatabaseConnector.ListFilesByCommentId(commentId);
 
                     var fileEntries = files.Select(file => new Dictionary<string, object>
                     {
@@ -595,21 +586,20 @@ namespace MyProject.Controllers
                         var json = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(sessionCookie));
                         var userData = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
                         int userId = Convert.ToInt32(userData["id"]);
-                        var user = DatabaseConnector.Query("SELECT firstname, lastname FROM users WHERE id = " + userId);
+                        var user = DatabaseConnector.GetUserById(userId);
                         if (user.Count() > 0)
                         {
                             var userRecord = user.FirstOrDefault();
                             if (userRecord != null)
                             {
-                                author = userRecord.firstname + " " + userRecord.lastname;
+                                author = userRecord["firstname"] + " " + userRecord["lastname"];
                             }
                         }
                     }
                     catch { /* intentionally silent */ }
                 }
 
-                string query = $"INSERT INTO blogs (title, content, author, url, is_private) VALUES ('{title}', '{content}', '{author}', '{url}', {isPrivate})";
-                DatabaseConnector.Query(query);
+                DatabaseConnector.CreateBlog(title, content, author, url, isPrivate == "1");
 
                 return Ok(new { message = "Blog creado con éxito" });
             }

@@ -1,0 +1,12 @@
+FROM node:18
+
+WORKDIR /app
+
+COPY package.json .
+COPY app.js .
+COPY mysql.js .
+COPY public ./public
+
+RUN npm install
+
+CMD ["node", "app.js"]

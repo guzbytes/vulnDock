@@ -1,0 +1,18 @@
+[
+    {
+      "username": "lab_user1",
+      "email": "user1@lab.com",
+      "firstname": "lab1",
+      "lastname": "user1",
+      "password": "P@ssw0rd123",
+      "is_admin": 0
+    },
+    {
+      "username": "lab_user2",
+      "email": "user2@lab.com",
+      "firstname": "lab1",
+      "lastname": "user1",
+      "password": "SecurePass456",
+      "is_admin": 1
+    }
+  ]

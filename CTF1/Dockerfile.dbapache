@@ -1,0 +1,18 @@
+FROM ubuntu:22.04
+
+RUN apt-get update && apt-get install -y \
+    mysql-server \
+    apache2
+
+COPY init.sql /init.sql
+
+RUN sed -i 's/bind-address\s*= 127.0.0.1/bind-address = 0.0.0.0/' /etc/mysql/mysql.conf.d/mysqld.cnf
+RUN echo "port = 3306" >> /etc/mysql/mysql.conf.d/mysqld.cnf
+
+
+CMD service mysql start && \
+    mysql -u root < /init.sql && \
+    service apache2 start && \
+    mysqld --secure-file-priv= & \
+    tail -f /dev/null
+

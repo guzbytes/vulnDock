@@ -1,5 +1,6 @@
 ARG WEB_VERSION=8.0
 FROM mcr.microsoft.com/dotnet/aspnet:${WEB_VERSION} AS base
+RUN echo "WEB_VERSION=$WEB_VERSION"
 WORKDIR /app
 EXPOSE 80
 
