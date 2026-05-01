@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             blogs.forEach(blog => {
                 const article = document.createElement('article');
                 article.innerHTML = `
-                    <h3>${blog.title}</h3>
+                    <h3><a href="/blog/${blog.id}">${blog.title}</a></h3>
                     <p>${blog.content.substring(0, 400)}</p>
                     <p><strong>Autor:</strong> ${blog.author}</p>
                 `;

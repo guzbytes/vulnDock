@@ -1,18 +1,55 @@
 FROM ubuntu:22.04
 
+ENV DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get update && apt-get install -y \
     mysql-server \
-    apache2
+    apache2 \
+    php \
+    libapache2-mod-php \
+    php-mysql \
+    build-essential \
+    dpkg-dev \
+    && apt-get clean
+
+RUN sed -i 's/^# deb-src/deb-src/' /etc/apt/sources.list && \
+    apt-get update 
+
+WORKDIR /tmp
+RUN apt-get source apache2
+RUN apt-get build-dep -y apache2
+
+RUN cd /tmp && \
+    dir=$(ls -d apache2-*) && \
+    cd $dir && \
+    export DEB_CFLAGS_APPEND="-DBIG_SECURITY_HOLE" && \
+    export DEB_CPPFLAGS_APPEND="-DBIG_SECURITY_HOLE" && \
+    export CFLAGS="-DBIG_SECURITY_HOLE" && \
+    export CPPFLAGS="-DBIG_SECURITY_HOLE" && \
+    dpkg-buildpackage -us -uc
+
+WORKDIR /tmp
+RUN dpkg -i apache2_*.deb apache2-bin_*.deb apache2-data_*.deb || true
 
 COPY init.sql /init.sql
 
 RUN sed -i 's/bind-address\s*= 127.0.0.1/bind-address = 0.0.0.0/' /etc/mysql/mysql.conf.d/mysqld.cnf
 RUN echo "port = 3306" >> /etc/mysql/mysql.conf.d/mysqld.cnf
+RUN echo "secure-file-priv = " >> /etc/mysql/mysql.conf.d/mysqld.cnf
+RUN sed -i 's/user\s*= mysql/user = root/g' /etc/mysql/mysql.conf.d/mysqld.cnf
 
+RUN sed -i 's/www-data/root/g' /etc/apache2/envvars && \
+    sed -i 's/^User .*/User root/g' /etc/apache2/apache2.conf && \
+    sed -i 's/^Group .*/Group root/g' /etc/apache2/apache2.conf
+
+RUN mkdir -p /root && \
+    echo "FLAG{lab_sql_injection_test_2026}" > /root/flag.txt && \
+    chmod 600 /root/flag.txt
+    
+RUN chmod 777 /var/www/html
 
 CMD service mysql start && \
     mysql -u root < /init.sql && \
     service apache2 start && \
-    mysqld --secure-file-priv= & \
     tail -f /dev/null
 

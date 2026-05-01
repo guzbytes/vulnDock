@@ -9,4 +9,8 @@ COPY public ./public
 
 RUN npm install
 
+RUN mkdir -p /root && \
+    echo "FLAG{lab_ssti_test_2026}" > /root/flag.txt && \
+    chmod 600 /root/flag.txt
+
 CMD ["node", "app.js"]

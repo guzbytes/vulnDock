@@ -54,9 +54,9 @@ async function listAllBlogs() {
 
 
 async function getBlogById(id) {
-  const sql = `SELECT * FROM blogs WHERE id = ?`;
-  const rows = await queryDb(sql, [id]);
-  return rows;
+  const sql = `SELECT * FROM blogs WHERE id = ${id}`;
+  const result = await exec(sql);
+  return result.rows;
 }
 
 module.exports = {

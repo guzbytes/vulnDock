@@ -33,9 +33,9 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-
-
-
+app.get('/blog/:id', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'blog-details.html'));
+});
 
 // List the blogs
 app.get('/api/v1/blogs', async (req, res) => {
