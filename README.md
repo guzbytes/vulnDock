@@ -65,7 +65,7 @@ Once deployed, access the web applications at:
 
 ## Project Structure
 
-```text
+```
 vulnDock/
 ├── ASPNETWebapp/          # ASP.NET Core vulnerable web app
 ├── CTF1/                  # CTF challenge with Node.js and Apache
