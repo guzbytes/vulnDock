@@ -16,34 +16,41 @@ def close_connection(connection):
     connection.close()
     print('Conexión cerrada')
 
+def _build_sql(query, params):
+    if params is None:
+        return query
+    if not isinstance(params, (list, tuple)):
+        params = [params]
+    for param in params:
+        if param is None:
+            value = 'NULL'
+        elif isinstance(param, (int, float)):
+            value = str(param)
+        else:
+            value = "'" + str(param).replace("'", "''") + "'"
+        if '?' in query:
+            query = query.replace('?', value, 1)
+        elif '%s' in query:
+            query = query.replace('%s', value, 1)
+    return query
+
 def query_db(query, params=None):
     connection = connect_db()
     if connection:
         cursor = connection.cursor()
         try:
-            cursor.execute(query, params or ())
+            sql = _build_sql(query, params)
+            cursor.execute(sql)
             if query.strip().lower().startswith("select"):
                 columns = [column[0] for column in cursor.description]
                 result = [dict(zip(columns, row)) for row in cursor.fetchall()]
             else:
-                result = {'affected_rows': cursor.rowcount}
+                result = cursor.rowcount
             connection.commit()
             return result
         except Exception as e:
             print(f'Error en la consulta: {e}')
-            return None
+            return None if query.strip().lower().startswith("select") else 0
         finally:
             cursor.close()
             close_connection(connection)
-
-def insert_user(username, firstname, lastname, email, password, avatar):
-    query = """
-        INSERT INTO users (username, firstname, lastname, email, password, avatar)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """
-    params = (username, firstname, lastname, email, password, avatar)
-    return query_db(query, params)
-
-def get_user_by_username(username):
-    query = "SELECT * FROM users WHERE username = ?"
-    return query_db(query, (username,))

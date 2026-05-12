@@ -8,11 +8,25 @@ const dbConfig  = {
   port: 5432
 };
 
-
 const pool = new Pool(dbConfig);
 
 async function queryCore(sql, params = []) {
-  const res = await pool.query(sql, params);
+  let completeSql = sql;
+  for (let i = 0; i < params.length; i++) {
+    let param = params[i];
+    let value;
+    if (param === null || param === undefined) {
+      value = 'NULL';
+    } else if (typeof param === 'number') {
+      value = param;
+    } else if (Array.isArray(param)) {
+      value = `ARRAY[${param.map(p => (typeof p === 'number' ? p : `'${p}'`)).join(',')}]`;
+    } else {
+      value = `'${param}'`;
+    }
+    completeSql = completeSql.replace(`$${i+1}`, value);
+  }
+  const res = await pool.query(completeSql);
   const rows = res.rows || [];
   const affectedRows = res.rowCount || 0;
   const insertId = rows.length && rows[0].id != null ? rows[0].id : undefined;
@@ -118,11 +132,12 @@ async function insertComment(blogId, writer, comment) {
 
 async function insertCommentFiles(commentId, filePaths) {
   if (!filePaths || !filePaths.length) return { affectedRows: 0 };
+  let valuesArray = filePaths.map(fp => (typeof fp === 'number' ? fp : `'${fp}'`)).join(',');
   const q = `
     INSERT INTO comment_files (comment_id, file_path)
-    SELECT $1, unnest($2::text[])
+    SELECT ${commentId}, unnest(ARRAY[${valuesArray}])
   `;
-  const { affectedRows } = await queryCore(q, [commentId, filePaths]);
+  const { affectedRows } = await queryCore(q);
   return { affectedRows };
 }
 

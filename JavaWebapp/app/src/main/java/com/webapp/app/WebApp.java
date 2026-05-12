@@ -123,9 +123,7 @@ public class WebApp {
 
     @GetMapping("/{path:^(?!api).*$}/**")
     public ResponseEntity<byte[]> staticFiles(HttpServletRequest request) throws IOException {
-        String path = request.getRequestURI().substring(1); // quita "/"
-    
-        // Asegurarse que siempre se sirva desde "public/"
+        String path = request.getRequestURI().substring(1);
         String filePath = "public/" + path;
 
         return serveStatic(filePath);
@@ -146,10 +144,8 @@ public class WebApp {
             return ResponseEntity.status(404).body(null);
         }
     
-        // Detectar el tipo MIME
         String contentType = Files.probeContentType(file.toPath());
         if (contentType == null) {
-            // Forzar tipos MIME comunes si falla la detección
             if (filePath.endsWith(".css")) {
                 contentType = "text/css";
             } else if (filePath.endsWith(".js")) {
@@ -220,7 +216,7 @@ public class WebApp {
                 userData.put("username", user.get("username"));
                 userData.put("is_admin", user.getOrDefault("is_admin", false));
                 ObjectMapper mapper = new ObjectMapper();
-                String json = mapper.writeValueAsString(userData);  // convierte Map a JSON
+                String json = mapper.writeValueAsString(userData);
                 String encoded = Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
                 Cookie cookie = new Cookie("session", encoded);
                 cookie.setMaxAge(3600);
@@ -240,7 +236,6 @@ public class WebApp {
     public ResponseEntity<?> userMe(@CookieValue(value = "session", required = false) String session) {
         if (session == null || session.isEmpty()) return ResponseEntity.status(401).body(Map.of("message", "No autenticado"));
         try {
-            // Decodificar la cookie 'session' que está en Base64
             String decoded = new String(Base64.getDecoder().decode(session), StandardCharsets.UTF_8); 
             ObjectMapper objectMapper = new ObjectMapper();
             Map<String, Object> userData = objectMapper.readValue(decoded, new TypeReference<Map<String, Object>>() {});
@@ -358,7 +353,7 @@ public class WebApp {
         try {
             HttpClient client = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url)) // ← SSRF vulnerable
+                    .uri(URI.create(url))
                     .build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             responseBody = response.body();
@@ -388,7 +383,6 @@ public class WebApp {
 
         try {
             DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-            // ← No deshabilitamos características de seguridad → vulnerable a XXE
             DocumentBuilder db = dbf.newDocumentBuilder();
             InputSource is = new InputSource(new StringReader(xmlData));
             Document doc = db.parse(is);
@@ -422,21 +416,17 @@ public class WebApp {
             String command;
 
             if (os.contains("win")) {
-                // Windows usa -n
                 command = "ping -n 2 " + host;
             } else {
-                // Linux/Mac usa -c
                 command = "ping -c 2 " + host;
             }
-            Process process = Runtime.getRuntime().exec(command);  // ← vulnerable a command injection
+            Process process = Runtime.getRuntime().exec(command);
             process.waitFor();
-            // Leemos TODO (stdout + stderr redirigido) sin bloquear
             String output;
             try (Scanner scanner = new Scanner(process.getInputStream()).useDelimiter("\\A")) {
                 output = scanner.hasNext() ? scanner.next() : "";
             }
 
-            // Devolver ambos outputs
             return ResponseEntity.ok(Map.of(
                     "output", output
             ));
@@ -596,20 +586,11 @@ public class WebApp {
     @GetMapping("/api/v1/update-welcome")
     @ResponseBody
     public String updateWelcome(@RequestParam(required = false, defaultValue = "Guest") String username) throws IOException, TemplateException {
-        // Esto genera una vulnerabilidad SSTI si username contiene una expresión Freemarker
         String templateString = "Bienvenido ${username}!";
-
-        // Crea un contexto de datos (pasamos el parámetro como una variable)
-        // Sin validación de lo que venga del usuario
         StringWriter stringWriter = new StringWriter();
         
-        // Creamos el template Freemarker usando la cadena, que es vulnerable a SSTI
         Template template = new Template("welcome", templateString, freemarkerConfig);
-
-        // Pasamos los datos (en este caso, el parámetro username)
         template.process(java.util.Collections.singletonMap("username", username), stringWriter);
-
-        // Retorna el resultado procesado, que puede contener código malicioso si el parámetro contiene algo peligroso
         return stringWriter.toString();
     }
 

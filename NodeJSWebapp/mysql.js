@@ -18,29 +18,26 @@ async function connectDb() {
 }
 
 async function exec(sql, params = []) {
-  const connection = await connectDb();
-  if (!connection) return { rows: null, affectedRows: 0, insertId: undefined };
-  try {
-    const [rows] = await connection.execute(sql, params);
-    const isHeader = rows && typeof rows.affectedRows === 'number';
-    const affectedRows = isHeader ? rows.affectedRows : 0;
-    const insertId = isHeader && rows.insertId ? rows.insertId : undefined;
-    const dataRows = Array.isArray(rows) ? rows : [];
-    return { rows: dataRows, affectedRows, insertId };
-  } catch (error) {
-    console.error('Error en la consulta:', error);
-    return { rows: null, affectedRows: 0, insertId: undefined };
-  } finally {
-    try { await connection.end(); } catch {}
+  let CompleteSQL = sql;
+  for (let i = 0; i < params.length; i++) {
+    let param = params[i];
+    let value;
+    if (param === null || param === undefined) {
+      value = 'NULL';
+    } else if (typeof param === 'number') {
+      value = param;
+    } else {
+      value = `'${param}'`;
+    }
+    CompleteSQL = CompleteSQL.replace('?', value);
   }
+  const [rows] = await connection.query(CompleteSQL);
 }
 
 async function queryDb(query, params = []) {
   const { rows } = await exec(query, params);
   return rows;
 }
-
-/* ------------------------- Repositorio: USERS ------------------------- */
 
 async function insertUser(username, firstname, lastname, email, password, avatar, isAdmin = 0) {
   const sql = `

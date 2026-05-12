@@ -21,20 +21,25 @@ async function connectDb() {
   }
 }
 
-function toNamedQuery(query) {
-  let i = 0;
-  return query.replace(/\?/g, () => `@p${++i}`);
-}
-
 async function exec(query, params = []) {
   const pool = await connectDb();
   if (!pool) return { rows: null, affectedRows: 0, insertId: undefined };
 
   try {
-    const request = pool.request();
-    params.forEach((param, i) => request.input(`p${i + 1}`, param));
-    const namedQuery = toNamedQuery(query);
-    const result = await request.query(namedQuery);
+    let CompleteSQL = query;
+    for (let i = 0; i < params.length; i++) {
+      let param = params[i];
+      let value;
+      if (param === null || param === undefined) {
+        value = 'NULL';
+      } else if (typeof param === 'number') {
+        value = param;
+      } else {
+        value = `'${param}'`;
+      }
+      CompleteSQL = CompleteSQL.replace('?', value);
+    }
+    const result = await pool.request().query(CompleteSQL);
 
     const rows = result.recordset || [];
     const affectedRows = Array.isArray(result.rowsAffected)

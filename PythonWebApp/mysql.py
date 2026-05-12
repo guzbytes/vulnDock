@@ -1,7 +1,5 @@
-import mysql.connector 
-from mysql.connector import Error
+import mysql.connector
 
-# Configuración de la base de datos
 def connect_db():
     try:
         connection = mysql.connector.connect(
@@ -10,42 +8,50 @@ def connect_db():
             password='app_password',
             database='web_app'
         )
-        if connection.is_connected():
-            print('Conectado a la base de datos')
-            return connection
-    except Error as e:
+        print('Conectado a la base de datos (MySQL)')
+        return connection
+    except Exception as e:
         print(f'Error de conexión: {e}')
         return None
 
 def close_connection(connection):
-    if connection.is_connected():
-        connection.close()
-        print('Conexión cerrada')
+    connection.close()
+    print('Conexión cerrada')
+
+def _build_sql(query, params):
+    if params is None:
+        return query
+    if not isinstance(params, (list, tuple)):
+        params = [params]
+    for param in params:
+        if param is None:
+            value = 'NULL'
+        elif isinstance(param, (int, float)):
+            value = str(param)
+        else:
+            value = "'" + str(param).replace("'", "''") + "'"
+        if '%s' in query:
+            query = query.replace('%s', value, 1)
+        elif '?' in query:
+            query = query.replace('?', value, 1)
+    return query
 
 def query_db(query, params=None):
     connection = connect_db()
     if connection:
         cursor = connection.cursor(dictionary=True)
         try:
-            cursor.execute(query, params)
-            result = cursor.fetchall()
+            sql = _build_sql(query, params)
+            cursor.execute(sql)
+            if query.strip().lower().startswith("select"):
+                result = cursor.fetchall()
+            else:
+                result = cursor.rowcount
             connection.commit()
             return result
-        except Error as e:
+        except Exception as e:
             print(f'Error en la consulta: {e}')
-            return None
+            return None if query.strip().lower().startswith("select") else 0
         finally:
             cursor.close()
             close_connection(connection)
-
-def insert_user(username, firstname, lastname, email, password, avatar):
-    query = """
-        INSERT INTO users (username, firstname, lastname, email, password, avatar)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """
-    params = (username, firstname, lastname, email, password, avatar)
-    return query_db(query, params)
-
-def get_user_by_username(username):
-    query = "SELECT * FROM users WHERE username = %s"
-    return query_db(query, (username,))

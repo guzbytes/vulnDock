@@ -18,12 +18,11 @@ class UserController {
         $email = $_POST['email'];
         $password = $_POST['password'];
 
-        // Vulnerabilidad mantenida: sin validación ni escape de campos
-        $hashedPassword = password_hash($password, PASSWORD_DEFAULT); // bcrypt-like
+        $hashedPassword = password_hash($password, PASSWORD_DEFAULT); 
 
         $filename = basename($_FILES['avatar']['name']);
         $targetPath = "./images/avatars/$filename";
-        move_uploaded_file($_FILES['avatar']['tmp_name'], $targetPath); // vulnerable a path traversal
+        move_uploaded_file($_FILES['avatar']['tmp_name'], $targetPath); 
 
         $avatarPath = "/images/avatars/$filename";
 
@@ -109,7 +108,7 @@ class UserController {
         $lastName = $data['lastName'] ?? null;
         $email = $data['email'] ?? null;
         $newPassword = $data['newPassword'] ?? null;
-        $user = $GLOBALS['user']; // desde authenticateUser()
+        $user = $GLOBALS['user']; 
         $userId = $user['id'];
 
         if (!$firstName || !$lastName || !$email) {
@@ -140,7 +139,7 @@ class UserController {
 
         $query .= " WHERE id = ?";
         try {
-            $db->exec($query);
+            $db->exec($query, ...$params);
             jsonResponse(['message' => 'Perfil actualizado con éxito']);
         } catch (Exception $e) {
             jsonResponse(['message' => 'Error al actualizar el perfil.'], 500);

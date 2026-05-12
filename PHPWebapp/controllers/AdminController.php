@@ -5,7 +5,6 @@ require_once __DIR__ . '/../helpers/response.php';
 
 class AdminController {
 
-    // Importar usuarios desde URL
     public function importUsers($data, $files) {
         $db = new DatabaseConnector();
 
@@ -28,7 +27,6 @@ class AdminController {
             }
 
             foreach ($users as $user) {
-                // Sanitizar y preparar datos
                 $username  = addslashes($user['username']  ?? '');
                 $email     = addslashes($user['email']     ?? '');
                 $firstname = addslashes($user['firstname'] ?? '');
@@ -52,7 +50,6 @@ class AdminController {
         }
     }
 
-    // Importar usuarios desde XML
     public function importUsersFromXML($data, $files) {
         $json = file_get_contents('php://input');
         $data = json_decode($json, true);        
@@ -63,7 +60,7 @@ class AdminController {
         $xml = $data['xml'];
 
 
-        libxml_disable_entity_loader(false); // Permitir XXE intencionadamente para el ejemplo vulnerable
+        libxml_disable_entity_loader(false); 
         $dom = new DOMDocument();
 
         try {
@@ -99,7 +96,6 @@ class AdminController {
             return jsonResponse(['message' => 'Host no proporcionado'], 400);
         }
 
-        // Ejecuta ping (podrías validar formato de host antes)
         exec("ping -c 4 $host 2>&1", $output, $status);
 
         if ($status !== 0) {
