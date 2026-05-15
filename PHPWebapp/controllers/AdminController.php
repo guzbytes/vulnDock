@@ -91,12 +91,18 @@ class AdminController {
 
     // Ping inseguro
     public function pingHost($data, $files) {
-        $host = escapeshellarg($data['host'] ?? '');
+        $host = $data['host'] ?? '';
+
         if (empty($host)) {
             return jsonResponse(['message' => 'Host no proporcionado'], 400);
         }
 
-        exec("ping -c 4 $host 2>&1", $output, $status);
+        // Detectar sistema operativo
+        $isWindows = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN');
+        $pingCommand = $isWindows ? "ping -n 4 $host" : "ping -c 4 $host";
+
+        // ❌ VULNERABLE: concatenamos directamente el host sin escapeshellarg
+        exec($pingCommand . " 2>&1", $output, $status);
 
         if ($status !== 0) {
             return jsonResponse(['message' => 'Error al ejecutar el ping.', 'output' => $output], 500);

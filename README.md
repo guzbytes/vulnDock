@@ -1,6 +1,6 @@
 # VulnDock
 
-![VulnDock Logo](Frontend/public/Images/VulnDock.png)
+![VulnDock Logo](Frontend/public/images/VulnDock.png)
 
 VulnDock is a lightweight vulnerability lab setup tool designed for penetration testing and security training. It allows users to quickly deploy vulnerable web environments in Docker containers with various combinations of operating systems, databases, and programming languages.
 
@@ -46,7 +46,7 @@ The script will prompt you to select:
 
 The principal menu of the tool is displayed when running the `vulnDock.ps1` script. It provides an interactive interface for users to select the operating system, database, and programming language to configure their vulnerable environment.
 
-![Principal Menu](Frontend/public/Images/Menu.png)
+![Principal Menu](Frontend/public/images/Menu.png)
 
 ### Using Docker Compose
 

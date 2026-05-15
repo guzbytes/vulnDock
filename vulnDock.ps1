@@ -141,6 +141,41 @@ function Replace-DbConnector {
     Copy-Item -Path $sourceFile -Destination $destinationFile -Force
 }
 
+function Remove-DbConnector {
+    param(
+        [string]$language,
+        [string]$database
+    )
+
+    if (-not $backendFolders.ContainsKey($language) -or
+        -not $relativeConnectorPaths.ContainsKey($language) -or
+        -not $extensions.ContainsKey($language)) {
+        Write-Warning "Language not supported: $language"
+        return
+    }
+
+    $backendRoot = $backendFolders[$language]
+    $relativePath = $relativeConnectorPaths[$language]
+    $ext = $extensions[$language]
+
+    $connectorDir = if ($relativePath -eq ".") {
+        $backendRoot
+    } else {
+        Join-Path $backendRoot $relativePath
+    }
+
+    $destinationFile = Join-Path $connectorDir "DatabaseConnector.$ext"
+
+    if (-not (Test-Path $destinationFile)) {
+        Write-Warning "DatabaseConnector file not found: $destinationFile"
+        return
+    }
+
+    Write-Host "Removing $destinationFile"
+
+    Remove-Item -Path $destinationFile -Force
+}
+
 function Build-DockerComposeDynamic {
     param($os, $db, $lang)
     $dockerfileDb = $dockerfilesDb[$os][$db]
@@ -249,13 +284,6 @@ function Ensure-DockerEngineMatchesOSSystem {
 }
     
 
-function Remove-FoldersForWindows {
-    if (Test-Path ".\Docker\frontend") { Remove-Item -Recurse -Force ".\Docker\frontend" }
-    if (Test-Path ".\Docker\backend") { Remove-Item -Recurse -Force ".\Docker\backend" }
-    if (Test-Path ".\Docker\database") { Remove-Item -Recurse -Force ".\Docker\database" }
-
-}
-
 Clear-Host
 
 # Banner ASCII "vulnDock"
@@ -327,6 +355,8 @@ while ($true) {
         if ($deleteImg.ToUpper() -eq 'Y') {
             docker rmi -f vulndock-db vulndock-web
         }
+        rm .\docker-compose.yml
+        Remove-DbConnector -language $language -database $database   
         break
     }
 }

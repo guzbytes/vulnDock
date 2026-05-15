@@ -12,7 +12,7 @@ COPY ../PythonWebApp/ ./PythonWebApp
 RUN pip install --no-cache-dir -r ./PythonWebApp/requirements.txt
 
 # Copy the contents of Frontend to the 'public' folder inside the container (without the folder itself)
-COPY ../Frontend/ ./public
+COPY ../Frontend/public ./PythonWebApp/public
 
 # Expose port 80 (same as in Flask)
 EXPOSE 80

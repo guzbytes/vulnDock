@@ -60,7 +60,7 @@ COPY --from=python /Python /Python
 WORKDIR C://app
 
 COPY PythonWebApp/ ./PythonWebApp
-COPY Frontend/ ./public
+COPY Frontend/public ./public
 
 # Install dependencies
 RUN C:\Python\python.exe -m pip install --trusted-host pypi.python.org --trusted-host pypi.org --trusted-host files.pythonhosted.org --no-cache-dir -r ./PythonWebApp/requirements.txt
