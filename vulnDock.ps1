@@ -52,7 +52,7 @@ $dbVersions = @{
     "windows" = @{
         "mysql"    = @("5.7.13", "8.0.36", "8.4.3")
         "postgres" = @("17.5-1","14.13-1", "16.4-1")
-        "mssql"    = @("2017-latest", "2019-latest", "2022-latest")
+        "mssql"    = @("ltsc2019", "ltsc2022", "2022-latest")
     }
 }
 

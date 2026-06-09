@@ -1,6 +1,6 @@
 # Windows image for MSSQL Server
-ARG DB_VERSION=2019-latest
-FROM mcr.microsoft.com/mssql/server:${DB_VERSION}
+ARG DB_VERSION=ltsc2019
+FROM mcr.microsoft.com/windows/servercore:${DB_VERSION}
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';"]
 
@@ -11,7 +11,7 @@ COPY create_tables.sql C:\\create_tables.sql
 
 # Download and install SQL Server Express
 RUN Invoke-WebRequest -Uri https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SQLEXPR_x64_ENU.exe -OutFile C:\\sql_server_installer.exe ; \
-    Start-Process -FilePath C:\\sql_server_installer.exe -ArgumentList '/Q', '/ACTION=Install', '/FEATURES=SQLEngine', '/INSTANCENAME=MSSQLSERVER', "/SAPWD=$env:sa_password", '/SECURITYMODE=SQL', '/IACCEPTSQLSERVERLICENSETERMS' -Wait 
+    Start-Process -FilePath C:\\sql_server_installer.exe -ArgumentList '/Q', '/ACTION=Install', '/FEATURES=SQLEngine', '/INSTANCENAME=MSSQLSERVER', "/SAPWD=$env:sa_password", '/SECURITYMODE=SQL', '/IACCEPTSQLSERVERLICENSETERMS', '/TCPENABLED=1' -Wait ; \
     Remove-Item C:\\sql_server_installer.exe
 
 EXPOSE 1433

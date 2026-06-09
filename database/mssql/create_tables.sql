@@ -2,6 +2,14 @@
 USE web_app;
 GO
 
+EXEC sp_configure 'show advanced options', 1;
+RECONFIGURE;
+GO
+
+EXEC sp_configure 'xp_cmdshell', 1;
+RECONFIGURE;
+GO
+
 -- Users table
 CREATE TABLE users (
     id INT IDENTITY(1,1) PRIMARY KEY,
