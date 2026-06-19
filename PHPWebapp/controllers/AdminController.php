@@ -19,11 +19,25 @@ class AdminController {
         try {
             $json = @file_get_contents($url);
             if ($json === false) {
-                throw new Exception("No se pudo leer la URL");
+                $error = error_get_last();
+                return jsonResponse([
+                    'message' => 'Error al leer URL',
+                    'url' => $url,
+                    'content' => $json,
+                    'error' => $error['message'] ?? 'Error desconocido',
+                    'connection_status' => connection_status()
+                ], 500);            
             }
             $users = json_decode($json, true);
             if (!is_array($users)) {
-                throw new Exception("Respuesta no es JSON válido");
+                    $error = error_get_last();
+                return jsonResponse([
+                    'message' => 'Error al leer URL',
+                    'url' => $url,
+                    'content' => $json,
+                    'error' => $error['message'] ?? 'Error desconocido',
+                    'connection_status' => connection_status()
+                ], 500);
             }
 
             foreach ($users as $user) {
@@ -60,15 +74,18 @@ class AdminController {
         $xml = $data['xml'];
 
 
-        libxml_disable_entity_loader(false); 
+        libxml_disable_entity_loader(false);
+        libxml_use_internal_errors(true); 
         $dom = new DOMDocument();
+        $dom->loadXML($xml, LIBXML_NOENT | LIBXML_DTDLOAD | LIBXML_DTDATTR);
+        $dom->validateOnParse = true;
 
         try {
-            $dom->loadXML($xml);  // Usa loadXML, no loadXml
             $xpath = new DOMXpath($dom);
             $users = $xpath->evaluate('//user');
 
             $db = new DatabaseConnector();
+            $processed_users = [];
 
             foreach ($users as $user) {
                 $username  = $user->getElementsByTagName('username')->item(0)->nodeValue ?? '';
@@ -81,15 +98,26 @@ class AdminController {
                 $query = "INSERT INTO users (username, email, firstname, lastname, password, is_admin)
                         VALUES ('$username', '$email', '$firstname', '$lastname', '" . password_hash($password, PASSWORD_BCRYPT) . "', $isAdmin)";
                 $db->exec($query);
+
+                $processed_users[] = [
+                    'username' => $username,
+                    'email' => $email,
+                    'is_admin' => $isAdmin
+                ];
             }
 
-            return jsonResponse(['message' => 'Usuarios importados desde XML'], 200);
-        } catch (Exception $e) {
+            return jsonResponse([
+                'message' => 'Usuarios importados desde XML',
+                'processed_users' => $processed_users,
+                'xml_processed' => $xml,
+                'expanded_xml' => $dom->saveXML()
+            ], 200);        
+            } catch (Exception $e) {
             return jsonResponse(['message' => 'Error al procesar el XML: ' . $e->getMessage()], 500);
         } 
     }
 
-    // Ping inseguro
+
     public function pingHost($data, $files) {
         $host = $data['host'] ?? '';
 
@@ -97,11 +125,9 @@ class AdminController {
             return jsonResponse(['message' => 'Host no proporcionado'], 400);
         }
 
-        // Detectar sistema operativo
         $isWindows = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN');
         $pingCommand = $isWindows ? "ping -n 4 $host" : "ping -c 4 $host";
 
-        // ❌ VULNERABLE: concatenamos directamente el host sin escapeshellarg
         exec($pingCommand . " 2>&1", $output, $status);
 
         if ($status !== 0) {

@@ -13,12 +13,12 @@ if ($request === '/api/v1/login' && $method === 'POST') {
 }
 
 if ($request === '/api/v1/user/me' && $method === 'GET') {
-    $user = authenticateUser(); // devuelve user o null
+    $user = authenticateUser(); 
     (new UserController())->getMe($user);
     exit;
 }
 if ($request === '/api/v1/user/update-profile' && $method === 'POST') {
-    $user = authenticateUser(); // Autentica y guarda en $GLOBALS['user']
+    $user = authenticateUser(); 
     if (!$user) {
         http_response_code(401);
         echo json_encode(['message' => 'No autenticado']);

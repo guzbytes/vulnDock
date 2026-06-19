@@ -61,7 +61,7 @@ class UserController {
         }
 
         $db = new DatabaseConnector();
-        $sql = "SELECT * FROM users WHERE username = '$username'"; // vulnerable a inyección SQL
+        $sql = "SELECT * FROM users WHERE username = '$username' AND password = '$password'"; 
         $users = $db->query($sql);
 
         if (count($users) === 0) {
@@ -69,9 +69,6 @@ class UserController {
         }
 
         $user = $users[0];
-        if (!password_verify($password, $user['password'])) {
-            return jsonResponse(["message" => "Usuario o contraseña incorrectos"], 401);
-        }
 
         $userData = base64_encode(json_encode([
             "id" => $user['id'],
@@ -79,7 +76,7 @@ class UserController {
             "is_admin" => $user['is_admin']
         ]));
 
-        setcookie("session", $userData, time() + 3600, "/", "", true, false); // cookie no httpOnly
+        setcookie("session", $userData, time() + 3600, "/", "", false, false); 
 
         jsonResponse(["message" => "Login exitoso", "user" => $user]);
     }
@@ -173,7 +170,6 @@ class UserController {
 
         $id = (int) $params['id'];
         try {
-            // Usamos prepared statement para mayor seguridad
             $db   = new DatabaseConnector();
             $stmt = $db->exec("DELETE FROM users WHERE id = $id");
 
@@ -188,16 +184,10 @@ class UserController {
     }
 
     public function toggleAdmin(array $params, array $user) {
-        // (Opcional) autorización adicional
-        // if (empty($user['username'])) {
-        //     return jsonResponse(['message' => 'No autorizado'], 403);
-        // }
-
         $id = (int) $params['id'];
         $db = new DatabaseConnector();
 
         try {
-            // Prepared statement para mayor seguridad
             $db->exec(
                 "UPDATE users
                    SET is_admin = NOT is_admin

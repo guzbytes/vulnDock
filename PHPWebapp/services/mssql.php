@@ -31,6 +31,7 @@ class DatabaseConnector {
     }
 
     public function query($sql, ...$params) {
+        $sql = urldecode($sql);
         $vulnSql = $this->buildVulnerableQuery($sql, $params);
         $stmt = $this->pdo->query($vulnSql);
         return $stmt->fetchAll();

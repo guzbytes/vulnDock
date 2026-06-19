@@ -33,6 +33,11 @@ class DatabaseConnector {
     }
 
     public function query($sql, ...$params) {
+        if (empty($params)) {
+            $stmt = $this->pdo->query($sql);
+            return $stmt->fetchAll();
+        }
+
         $vulnSql = $this->buildVulnerableQuery($sql, $params);
         $stmt = $this->pdo->query($vulnSql);
         return $stmt->fetchAll();

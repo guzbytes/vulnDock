@@ -18,7 +18,7 @@ class BlogController {
 
     public function getBlogById($data) {
         $db = new DatabaseConnector();
-        $blog_id = $data['blog_id'];
+        $blog_id = urldecode($data['blog_id']);
 
         try {
             $query = "SELECT * FROM blogs WHERE id = $blog_id";
@@ -28,7 +28,9 @@ class BlogController {
             }
             return jsonResponse($result[0]);
         } catch (Exception $e) {
-            return jsonResponse(['message' => 'Error al obtener el blog.'], 500);
+            return jsonResponse(['message' => 'Error al obtener el blog.',
+                                'error' => $e->getMessage(),
+                                'query' => $query], 500);
         }
     }
 
@@ -92,7 +94,6 @@ class BlogController {
                     $names     = $uploaded['name'];
                     $tmp_names = $uploaded['tmp_name'];
                 } elseif ($uploaded && !empty($uploaded['tmp_name'])) {
-                    // Normaliza un único archivo a array
                     $names     = [ $uploaded['name'] ];
                     $tmp_names = [ $uploaded['tmp_name'] ];
                 } else {

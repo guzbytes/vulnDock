@@ -1,6 +1,6 @@
 <?php
 $requestUri = $_SERVER['REQUEST_URI'];
-$request = parse_url($requestUri, PHP_URL_PATH); // ← ¡esto limpia los parámetros!
+$request = parse_url($requestUri, PHP_URL_PATH); 
 $method = $_SERVER['REQUEST_METHOD'];
 
 require_once './routes/users.php';

