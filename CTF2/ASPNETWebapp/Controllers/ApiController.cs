@@ -13,8 +13,7 @@ namespace MyProject.Controllers
         public ApiController(IWebHostEnvironment env)
         {
             _env = env;
-            UploadPath = Path.Combine(_env.WebRootPath, "uploads");
-        }
+            UploadPath = @"C:\inetpub\wwwroot\uploads";        }
 
          [HttpGet("tickets")]
         public IActionResult GetTickets()

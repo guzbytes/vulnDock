@@ -1,4 +1,3 @@
-# Windows image for MSSQL Server
 ARG DB_VERSION=ltsc2019
 FROM mcr.microsoft.com/windows/servercore:${DB_VERSION}
 
@@ -13,6 +12,9 @@ COPY init.sql C:\\create_tables.sql
 RUN Invoke-WebRequest -Uri https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SQLEXPR_x64_ENU.exe -OutFile C:\\sql_server_installer.exe ; \
     Start-Process -FilePath C:\\sql_server_installer.exe -ArgumentList '/Q', '/ACTION=Install', '/FEATURES=SQLEngine', '/INSTANCENAME=MSSQLSERVER', "/SAPWD=$env:sa_password", '/SECURITYMODE=SQL', '/IACCEPTSQLSERVERLICENSETERMS', '/TCPENABLED=1' -Wait  ; \
     Remove-Item C:\\sql_server_installer.exe
+
+RUN New-Item -Path 'C:\Users\Administrator' -Name 'flag.txt' -ItemType 'File' -Value 'CTF{m5_sql_vulnerabl3_adm1n}' -Force; 
+RUN sc.exe config MSSQLSERVER obj= 'LocalSystem'
 
 EXPOSE 1433
 

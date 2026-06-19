@@ -2,12 +2,15 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.ListenAnyIP(80);
+    options.ListenAnyIP(5000);
 });
 
 builder.Services.AddControllers(); 
 
 var app = builder.Build();
+
+Console.WriteLine($"ContentRoot = {app.Environment.ContentRootPath}");
+Console.WriteLine($"WebRoot = {app.Environment.WebRootPath}");
 
 app.Use(async (context, next) =>
 {
